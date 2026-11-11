@@ -55,13 +55,17 @@ Render's free tier blocks SMTP, so the app sends through the Gmail REST API over
 1. Create (or reuse) a **dedicated** Gmail account for sending, and turn on 2-step verification.
 2. In the [Google Cloud console](https://console.cloud.google.com/), create a project and enable the **Gmail API**.
 3. Open **Google Auth Platform**:
-   - Under **Branding**, set the app name.
+   - Under **Branding**, set the app name, support email and developer contact.
+     - Google won't let you publish without a home page and a privacy policy. Use the repo URL plus [PRIVACY.md](PRIVACY.md) and [TERMS.md](TERMS.md).
+     - Add `github.com` under Authorized domains.
    - Under **Audience**, choose External, then **Publish app** so the status reads "In production". This matters: in "Testing" status, Google expires the refresh token after 7 days.
 4. Under **Clients**, choose Create client → **Desktop app**, and copy the client ID and secret.
-5. Run:
+5. Run the following, using your own address for the test email:
    ```bash
    cd backend
-   uv run python -m scripts.gmail_auth --client-id <id> --client-secret <secret>
+   uv run python -m scripts.gmail_auth --send-test you@example.com
    ```
-   A browser opens. Sign in **as the dedicated account**. Google warns that the app is unverified; choose Advanced → Continue, since it's your own app.
+   - It prompts for the client ID and secret. The secret is hidden and stays out of your shell history.
+   - A browser opens. Pick the **dedicated** account. Google warns that the app is unverified; choose Advanced → Continue, since it's your own app.
+   - The script prints which account it connected, and sends you a test email.
 6. Copy the printed `GMAIL_*` values into `backend/.env` (to send for real locally) and into Render.

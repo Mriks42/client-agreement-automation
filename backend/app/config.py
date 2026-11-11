@@ -3,7 +3,7 @@
 from functools import lru_cache
 from typing import Literal
 
-from pydantic import AliasChoices, Field, SecretStr, model_validator
+from pydantic import AliasChoices, Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 _INSECURE_SECRET = "dev-insecure-change-me"  # noqa: S105 - placeholder, rejected in prod
@@ -47,6 +47,23 @@ class Settings(BaseSettings):
     ops_token: SecretStr | None = None
 
     frontend_dist: str = "../frontend/dist"
+
+    @field_validator(
+        "anthropic_api_key",
+        "gmail_client_id",
+        "gmail_client_secret",
+        "gmail_refresh_token",
+        "gmail_sender",
+        "sentry_dsn",
+        "ops_token",
+        mode="before",
+    )
+    @classmethod
+    def _blank_is_unset(cls, value: object) -> object:
+        # Hosting dashboards often store "not set" as an empty string.
+        if isinstance(value, str) and not value.strip():
+            return None
+        return value
 
     @model_validator(mode="after")
     def _validate_prod(self) -> "Settings":

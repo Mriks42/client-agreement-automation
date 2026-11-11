@@ -56,3 +56,8 @@ async def test_ops_test_email_requires_correct_token(
     )
     assert ok.status_code == 200 and ok.json()["provider"] == "console"
     assert outbox.outbox[-1].to == ["jane.client@example.com"]
+
+
+def test_blank_optional_settings_are_treated_as_unset() -> None:
+    s = make_settings(anthropic_api_key="", sentry_dsn="  ", ops_token="")
+    assert s.anthropic_api_key is None and s.sentry_dsn is None and s.ops_token is None
