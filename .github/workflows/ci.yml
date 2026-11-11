@@ -9,9 +9,11 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
+# Runners pinned to ubuntu-24.04: ubuntu-latest moved to Ubuntu 26 (kernel 6.19+) in Oct 2026,
+# and MongoDB 8.0 refuses to start on kernels >= 6.19 (SERVER-121912). Atlas is unaffected.
 jobs:
   backend:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     services:
       mongo:
         image: mongo:8.0  # same major.minor as Atlas M0 in production
@@ -48,7 +50,7 @@ jobs:
       - run: if [ -f evals/run.py ]; then uv run python -m evals.run --offline; fi
 
   frontend:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     defaults:
       run:
         working-directory: frontend
@@ -64,7 +66,7 @@ jobs:
       - run: npm run build
 
   docker:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: [backend, frontend]
     services:
       mongo:
