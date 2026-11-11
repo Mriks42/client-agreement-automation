@@ -1,0 +1,44 @@
+# Render Blueprint: one Docker web service (DECISIONS.md D8, D10).
+# Secrets marked `sync: false` are entered once in the Render dashboard; never commit them.
+services:
+  - type: web
+    name: kickoff
+    runtime: docker
+    plan: free
+    region: oregon
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    healthCheckPath: /healthz
+    autoDeploy: true
+    envVars:
+      - key: APP_ENV
+        value: prod
+      # APP_BASE_URL defaults to Render's RENDER_EXTERNAL_URL; set it only for a custom domain.
+      - key: MONGODB_URI
+        sync: false
+      - key: MONGODB_DB
+        value: agreements
+      - key: SESSION_SECRET
+        generateValue: true
+      - key: OPS_TOKEN
+        generateValue: true
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: LLM_MODEL
+        value: claude-opus-5-5
+      - key: LLM_EFFORT
+        value: high
+      - key: EMAIL_BACKEND
+        value: gmail_api
+      - key: GMAIL_CLIENT_ID
+        sync: false
+      - key: GMAIL_CLIENT_SECRET
+        sync: false
+      - key: GMAIL_REFRESH_TOKEN
+        sync: false
+      - key: GMAIL_SENDER
+        sync: false
+      - key: SENTRY_DSN
+        sync: false
+      - key: RUN_WORKER
+        value: "true"

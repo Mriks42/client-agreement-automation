@@ -1,0 +1,78 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    services:
+      mongo:
+        image: mongo:8
+        ports: ["27017:27017"]
+        options: >-
+          --health-cmd "mongosh --quiet --eval 'db.runCommand({ping:1}).ok'"
+          --health-interval 5s --health-timeout 5s --health-retries 20
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.12.17"
+          enable-cache: true
+      - run: uv sync --frozen
+      - run: uv run ruff check .
+      - run: uv run ruff format --check .
+      - run: uv run mypy app
+      - run: uv run pytest -q
+        env:
+          TEST_MONGODB_URI: mongodb://localhost:27017
+      # Offline detection eval (heuristics only, no API cost). Enabled once evals land.
+      - run: if [ -f evals/run.py ]; then uv run python -m evals.run --offline; fi
+
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci --no-audit --no-fund
+      - run: npm run lint
+      - run: npm run build
+
+  docker:
+    runs-on: ubuntu-latest
+    needs: [backend, frontend]
+    services:
+      mongo:
+        image: mongo:8
+        ports: ["27017:27017"]
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build -t agreement-app .
+      - name: Image has the converters and libraries
+        run: |
+          docker run --rm agreement-app soffice --version
+          docker run --rm agreement-app python -c "import pymupdf, anthropic, pymongo; print('ok')"
+      - name: Boots, serves the API and the SPA
+        run: |
+          docker run -d --name app --network host -e APP_ENV=dev -e PORT=8000 \
+            -e MONGODB_URI=mongodb://localhost:27017 agreement-app
+          for i in $(seq 1 30); do curl -fsS localhost:8000/healthz && break; sleep 1; done
+          curl -sS localhost:8000/api/health
+          curl -fsS localhost:8000/ | grep -q '<div id="root">'
+          docker logs app | tail -20

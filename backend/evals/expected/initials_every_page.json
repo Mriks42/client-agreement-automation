@@ -1,0 +1,50 @@
+{
+  "description": "Initials in every page footer",
+  "roles": {
+    "client": [
+      "client"
+    ]
+  },
+  "fields": [
+    {
+      "page": 1,
+      "label": "Client:",
+      "nth": 1,
+      "type": "text",
+      "filled_by": "sender",
+      "required": true
+    },
+    {
+      "page": 1,
+      "label": "Client initials:",
+      "nth": 1,
+      "type": "initials",
+      "filled_by": "client",
+      "required": true
+    },
+    {
+      "page": 2,
+      "label": "Client initials:",
+      "nth": 1,
+      "type": "initials",
+      "filled_by": "client",
+      "required": true
+    },
+    {
+      "page": 2,
+      "label": "Client signature:",
+      "nth": 1,
+      "type": "signature",
+      "filled_by": "client",
+      "required": true
+    },
+    {
+      "page": 2,
+      "label": "Date:",
+      "nth": 1,
+      "type": "date_signed",
+      "filled_by": "client",
+      "required": true
+    }
+  ]
+}

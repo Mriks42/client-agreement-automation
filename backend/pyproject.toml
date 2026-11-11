@@ -1,0 +1,58 @@
+[project]
+name = "agreement-backend"
+version = "0.1.0"
+description = "Gets a firm's client agreement signed on every file."
+requires-python = ">=3.13,<3.14"
+dependencies = [
+    "anthropic>=2.8.0",
+    "argon2-cffi>=25.1.0",
+    "email-validator>=2.3.0",
+    "fastapi>=0.162.4",
+    "httpx>=0.28.1",
+    "pydantic>=2.14.3",
+    "pydantic-settings>=2.16.2",
+    "pymongo>=4.13",
+    "pymupdf>=1.26,<2",
+    "python-multipart>=0.0.33",
+    "sentry-sdk[fastapi]>=2.74.0",
+    "uvicorn[standard]>=0.54.0",
+]
+
+[tool.uv]
+package = false
+
+[tool.ruff]
+line-length = 100
+target-version = "py313"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "SIM", "ASYNC", "S", "RUF"]
+ignore = ["S101", "B008", "RUF012"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S105", "S106"]
+"evals/**" = ["S311"]
+
+[tool.mypy]
+python_version = "3.13"
+strict = false
+warn_unused_ignores = true
+ignore_missing_imports = true
+plugins = ["pydantic.mypy"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "session"
+asyncio_default_test_loop_scope = "session"
+testpaths = ["tests"]
+
+[dependency-groups]
+dev = [
+    "asgi-lifespan>=2.1.0",
+    "google-auth-oauthlib>=1.5.0",
+    "mypy>=2.4.1",
+    "pytest>=9.2.0",
+    "pytest-asyncio>=1.4.1.post1",
+    "python-docx>=1.2.0",
+    "ruff>=0.17.4",
+]

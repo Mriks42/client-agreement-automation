@@ -1,0 +1,29 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Node
+node_modules/
+frontend/dist/
+*.tsbuildinfo
+
+# Env & secrets
+.env
+.env.*
+!.env.example
+*.pem
+client_secret*.json
+
+# Eval outputs (fixtures themselves are committed)
+backend/evals/out/
+
+# OS / editors
+.DS_Store
+.idea/
+.vscode/

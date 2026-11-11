@@ -1,0 +1,11 @@
+{
+  "description": "Scanned (image-only); expect appended signature page + manual",
+  "roles": {
+    "client": [
+      "client"
+    ]
+  },
+  "fields": [],
+  "no_text_layer": true,
+  "expect_appended_signature_page": true
+}

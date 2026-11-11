@@ -1,0 +1,90 @@
+{
+  "description": "Bracket placeholders in body text; signature + date on one line",
+  "roles": {
+    "company": [
+      "company",
+      "provider",
+      "firm",
+      "harbor"
+    ],
+    "client": [
+      "client",
+      "customer"
+    ]
+  },
+  "fields": [
+    {
+      "page": 1,
+      "label": "[EFFECTIVE DATE]",
+      "nth": 1,
+      "type": "date",
+      "filled_by": "sender",
+      "required": true
+    },
+    {
+      "page": 1,
+      "label": "[CLIENT NAME]",
+      "nth": 1,
+      "type": "text",
+      "filled_by": "sender",
+      "required": true
+    },
+    {
+      "page": 1,
+      "label": "[CLIENT ADDRESS]",
+      "nth": 1,
+      "type": "text",
+      "filled_by": "sender",
+      "required": true
+    },
+    {
+      "page": 1,
+      "label": "[MONTHLY FEE]",
+      "nth": 1,
+      "type": "text",
+      "filled_by": "sender",
+      "required": true
+    },
+    {
+      "page": 1,
+      "label": "[CLIENT NAME]",
+      "nth": 2,
+      "type": "text",
+      "filled_by": "sender",
+      "required": true
+    },
+    {
+      "page": 1,
+      "label": "Authorized signature:",
+      "nth": 1,
+      "type": "signature",
+      "filled_by": "company",
+      "required": true
+    },
+    {
+      "page": 1,
+      "label": "Date:",
+      "nth": 1,
+      "type": "date_signed",
+      "filled_by": "company",
+      "required": true
+    },
+    {
+      "page": 1,
+      "label": "Authorized signature:",
+      "nth": 2,
+      "type": "signature",
+      "filled_by": "client",
+      "required": true
+    },
+    {
+      "page": 1,
+      "label": "Date:",
+      "nth": 2,
+      "type": "date_signed",
+      "filled_by": "client",
+      "required": true
+    }
+  ],
+  "placeholder_style": "bracket"
+}

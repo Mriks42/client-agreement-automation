@@ -1,0 +1,60 @@
+{
+  "description": "Engagement letter; firm pre-signed (/s/), client signs a stacked block",
+  "roles": {
+    "client": [
+      "client",
+      "customer",
+      "recipient"
+    ]
+  },
+  "fields": [
+    {
+      "page": 1,
+      "label": "Date:",
+      "nth": 1,
+      "type": "date",
+      "filled_by": "sender",
+      "required": true
+    },
+    {
+      "page": 1,
+      "label": "Dear",
+      "nth": 1,
+      "type": "text",
+      "filled_by": "sender",
+      "required": true
+    },
+    {
+      "page": 1,
+      "label": "Matter:",
+      "nth": 1,
+      "type": "text",
+      "filled_by": "sender",
+      "required": true
+    },
+    {
+      "page": 1,
+      "label": "Signature:",
+      "nth": 1,
+      "type": "signature",
+      "filled_by": "client",
+      "required": true
+    },
+    {
+      "page": 1,
+      "label": "Printed name:",
+      "nth": 1,
+      "type": "name",
+      "filled_by": "client",
+      "required": true
+    },
+    {
+      "page": 1,
+      "label": "Date:",
+      "nth": 2,
+      "type": "date_signed",
+      "filled_by": "client",
+      "required": true
+    }
+  ]
+}

@@ -1,0 +1,11 @@
+{
+  "description": "No signature block anywhere; expect appended signature page",
+  "roles": {
+    "client": [
+      "client",
+      "customer"
+    ]
+  },
+  "fields": [],
+  "expect_appended_signature_page": true
+}

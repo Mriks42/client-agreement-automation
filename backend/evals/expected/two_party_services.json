@@ -1,0 +1,129 @@
+{
+  "description": "Two-party services agreement, side-by-side signature blocks",
+  "roles": {
+    "provider": [
+      "provider",
+      "firm",
+      "company",
+      "consultant",
+      "northwind"
+    ],
+    "client": [
+      "client",
+      "customer"
+    ]
+  },
+  "fields": [
+    {
+      "page": 1,
+      "label": "Client legal name:",
+      "nth": 1,
+      "type": "text",
+      "filled_by": "sender",
+      "required": true
+    },
+    {
+      "page": 1,
+      "label": "Client address:",
+      "nth": 1,
+      "type": "text",
+      "filled_by": "sender",
+      "required": true
+    },
+    {
+      "page": 1,
+      "label": "Effective Date:",
+      "nth": 1,
+      "type": "date",
+      "filled_by": "sender",
+      "required": true
+    },
+    {
+      "page": 2,
+      "label": "Project fee (USD):",
+      "nth": 1,
+      "type": "text",
+      "filled_by": "sender",
+      "required": true
+    },
+    {
+      "page": 2,
+      "label": "Project description:",
+      "nth": 1,
+      "type": "text",
+      "filled_by": "sender",
+      "required": true
+    },
+    {
+      "page": 2,
+      "label": "By:",
+      "nth": 1,
+      "type": "signature",
+      "filled_by": "provider",
+      "required": true
+    },
+    {
+      "page": 2,
+      "label": "Name:",
+      "nth": 1,
+      "type": "name",
+      "filled_by": "provider",
+      "required": true
+    },
+    {
+      "page": 2,
+      "label": "Title:",
+      "nth": 1,
+      "type": "text",
+      "filled_by": "provider",
+      "required": true
+    },
+    {
+      "page": 2,
+      "label": "Date:",
+      "nth": 1,
+      "type": "date_signed",
+      "filled_by": "provider",
+      "required": true
+    },
+    {
+      "page": 2,
+      "label": "By:",
+      "nth": 2,
+      "type": "signature",
+      "filled_by": "client",
+      "required": true
+    },
+    {
+      "page": 2,
+      "label": "Name:",
+      "nth": 2,
+      "type": "name",
+      "filled_by": "client",
+      "required": true
+    },
+    {
+      "page": 2,
+      "label": "Title:",
+      "nth": 2,
+      "type": "text",
+      "filled_by": "client",
+      "required": true
+    },
+    {
+      "page": 2,
+      "label": "Date:",
+      "nth": 2,
+      "type": "date_signed",
+      "filled_by": "client",
+      "required": true
+    }
+  ],
+  "not_fields": [
+    {
+      "page": 1,
+      "label": "",
+      "why": "decorative separator rule"
+    }
+  ]
+}
