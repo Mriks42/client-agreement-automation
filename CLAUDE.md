@@ -2,7 +2,48 @@
 
 Context for anyone working in this repo, human or AI. `DECISIONS.md` explains *why* things are the way they are. This file covers *what* the project is and *how* to work on it.
 
-> **Status:** Day 1 scaffold is in place (health, job queue, email, fixtures). Keep the commands below accurate as features land.
+## Current status (update at the end of every work session)
+
+_Last updated: Wed Nov 11, 2026, end of Day 1._
+
+**Day 1 is done.**
+- **Live app:** https://kickoff-r713.onrender.com
+  - Render web service `kickoff`, free plan, Oregon, created from `render.yaml`. It auto-deploys on every push to `main`.
+  - `GET /api/health` reports database, email and worker as ok. LLM shows "not configured" until the Anthropic key is added.
+- **Database:** MongoDB Atlas M0 `Cluster0` (AWS us-west-2, MongoDB 8.0). The IP access list includes `0.0.0.0/0` for Render.
+- **Email:** Gmail API from `kickoff.signing.test@gmail.com`. The Google Cloud project is `kickoff-email`, and its OAuth app is **In production**, so the refresh token doesn't expire. Email from the live server is verified working. The first test email landed in spam, which is why a copy-link fallback is planned (DECISIONS.md D11).
+- **Monitoring:** UptimeRobot checks `/healthz` every 5 minutes. That keeps the free instance awake and emails the owner on downtime.
+- **CI:** GitHub Actions is green (backend, frontend, Docker build and boot). CI uses MongoDB 7.0; see the comment in `ci.yml`.
+- **Built so far:** the FastAPI app factory, the durable job queue, the email layer, health and ops endpoints, the frontend shell, and 7 synthetic eval fixtures under `backend/evals/`.
+- **Secrets** live only in the Render dashboard and the owner's private notes. Never in the repo, and never in chat.
+
+**Next: Day 2 (Thu Nov 12), the document pipeline.**
+- Ingest PDF and DOCX.
+- Extract lines and blank slots with real bounding boxes.
+- LLM labelling (`claude-opus-5-5`, structured outputs).
+- Heuristics fallback, mapping labels to rectangles, and the appended signature page.
+- The eval runner (`evals/run.py`).
+
+Exit criterion: every signature block is found on every fixture, and at least 90% of blanks are classified correctly.
+
+**Blocked on the owner:** create an `ANTHROPIC_API_KEY` with a spend limit, and add it to Render → kickoff → Environment, and to `backend/.env` for local evals.
+
+**Later reminders:**
+- The workspace's 750 free Render hours are shared with two other services; suspend those if grading runs into December.
+- Optional, before submitting: rotate the Atlas DB user's password, and update `MONGODB_URI` in Render to match.
+
+## Start of a work session (local dev)
+
+```bash
+open -a Docker                      # start Docker Desktop; wait ~20 s until `docker info` works
+docker start mongo 2>/dev/null || docker run -d --name mongo -p 27017:27017 mongo:8.0
+cd backend && uv sync && uv run pytest -q            # sanity check: all green
+uv run uvicorn app.main:create_app --factory --reload --port 8000   # API on :8000
+# second terminal:
+cd frontend && npm install && npm run dev            # UI on http://localhost:5173
+```
+
+At the end of a session: `docker stop mongo` (optional), then update "Current status" above and commit.
 
 ## What this is
 
