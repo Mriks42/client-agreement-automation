@@ -172,6 +172,12 @@ The brief says to make a reasonable decision when something is unclear and to wr
   - (a) is the right production answer, but it needs a domain, and I chose not to buy one for the take-home.
 - **Limits:** about 500 emails a day, and the sender address is a gmail.com account.
 - **Revisit when:** onboarding the first paying customer. The interface makes the provider a one-file swap.
+- **Observed risk:** the first email from the live server landed in Gmail's spam folder. The sender is a new account, and the links point to a free-hosting subdomain. Because a missed email must not stall a file, the product doesn't depend on email alone:
+  - The file page has a **Copy signing link** fallback, recorded in the audit trail as "link shared by sender".
+  - After sending, the app tells the sender to check spam if the email hasn't arrived.
+  - Signing emails are full transactional messages with a text part and an HTML part, not bare links.
+
+  The real fix is a custom domain for the app and a transactional email provider on that domain.
 
 ### D12: Which LLM, and how it's used
 - **Decision:**
@@ -206,7 +212,7 @@ The brief says to make a reasonable decision when something is unclear and to wr
 **The graded path (must work every time):**
 1. **Self-serve company signup.** Every company is an isolated workspace, which is the minimum for selling to "every other company".
 2. **Agreement upload with AI field detection and a review editor.** You can move, resize, add, or delete fields, set who fills each one, and approve. This is how an unseen agreement becomes usable in minutes (D2).
-3. **New file.** The form is generated from the agreement's own per-file blanks, plus a name and email for each signer, then an exact preview and send. The client details go in once, and nobody retypes the agreement.
+3. **New file.** The form is generated from the agreement's own per-file blanks, plus a name and email for each signer, then an exact preview and send. The client details go in once, and nobody retypes the agreement. If a signing email is slow or lands in spam, the sender can copy the signing link and share it another way. That action is recorded in the audit trail.
 4. **Signer experience.**
    - A branded email.
    - ESIGN consent.
@@ -277,3 +283,4 @@ The brief says to make a reasonable decision when something is unclear and to wr
 | 2026-11-11 | Initial decisions written before implementation. Hosting set to Render free tier and email to the Gmail API, after confirming that Render's free tier blocks SMTP. |
 | 2026-11-11 | Pinned PyMuPDF to 1.x. Version 2.x hard-requires layout/LLM add-ons (onnxruntime, numpy, networkx), which added about 250 MB to the image for nothing we use. The image dropped from 2.3 GB to 1.0 GB. |
 | 2026-11-11 | CI runs MongoDB 7.0 while production runs Atlas 8.0. GitHub's runners moved to Linux 6.19+ kernels, and MongoDB 8.0+ refuses to start on them (an upstream allocator issue, SERVER-121912, still open as SERVER-136848). We use no 8.0-only features, and local dev and Atlas still exercise 8.0. Revisit when the upstream fix ships. |
+| 2026-11-11 | First deploy is live, and email from production is verified, so Day 1 is done. The delivery test landed in spam, so I added a copy-link fallback and a check-spam prompt to the graded path (D11). |

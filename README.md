@@ -2,7 +2,7 @@
 
 A firm uploads its standard client agreement once. AI finds where every blank and signature goes, and a person confirms it. From then on, every new file sends a pre-filled agreement to the right people, chases them until they sign, and returns a signed, tamper-evident PDF. It then tells the firm's other systems that work can start.
 
-- **Live app:** _added on deploy_
+- **Live app:** https://kickoff-r713.onrender.com
 - **Why it's built this way:** [DECISIONS.md](DECISIONS.md)
 - **Working on the code:** [CLAUDE.md](CLAUDE.md)
 
