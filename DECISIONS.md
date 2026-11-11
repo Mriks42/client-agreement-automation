@@ -276,3 +276,4 @@ The brief says to make a reasonable decision when something is unclear and to wr
 |---|---|
 | 2026-11-11 | Initial decisions written before implementation. Hosting set to Render free tier and email to the Gmail API, after confirming that Render's free tier blocks SMTP. |
 | 2026-11-11 | Pinned PyMuPDF to 1.x. Version 2.x hard-requires layout/LLM add-ons (onnxruntime, numpy, networkx), which added about 250 MB to the image for nothing we use. The image dropped from 2.3 GB to 1.0 GB. |
+| 2026-11-11 | CI runs MongoDB 7.0 while production runs Atlas 8.0. GitHub's runners moved to Linux 6.19+ kernels, and MongoDB 8.0+ refuses to start on them (an upstream allocator issue, SERVER-121912, still open as SERVER-136848). We use no 8.0-only features, and local dev and Atlas still exercise 8.0. Revisit when the upstream fix ships. |
