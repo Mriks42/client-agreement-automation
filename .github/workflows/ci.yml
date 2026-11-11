@@ -14,14 +14,14 @@ jobs:
     runs-on: ubuntu-latest
     services:
       mongo:
-        image: mongo:8
+        image: mongo:8.0  # same major.minor as Atlas M0 in production
         ports: ["27017:27017"]
     defaults:
       run:
         working-directory: backend
     steps:
       - uses: actions/checkout@v5
-      - uses: astral-sh/setup-uv@v6
+      - uses: astral-sh/setup-uv@v10
         with:
           version: "0.12.17"
           enable-cache: true
@@ -30,6 +30,14 @@ jobs:
       # service containers that are still "starting", which made the first run flaky.
       - name: Wait for MongoDB
         run: timeout 60 bash -c 'until (echo > /dev/tcp/127.0.0.1/27017) 2>/dev/null; do sleep 1; done'
+      # Job logs need repo-admin rights to read via the API; annotations don't. Surface the
+      # service container's state and last log lines as annotations when anything fails.
+      - name: Diagnose MongoDB service
+        if: failure()
+        working-directory: .
+        run: |
+          echo "::error::mongo status: $(docker inspect -f '{{.State.Status}} exit={{.State.ExitCode}} oom={{.State.OOMKilled}}' ${{ job.services.mongo.id }})"
+          docker logs --tail 8 ${{ job.services.mongo.id }} 2>&1 | cut -c1-300 | while IFS= read -r line; do echo "::warning::$line"; done
       - run: uv run ruff check .
       - run: uv run ruff format --check .
       - run: uv run mypy app
@@ -60,7 +68,7 @@ jobs:
     needs: [backend, frontend]
     services:
       mongo:
-        image: mongo:8
+        image: mongo:8.0  # same major.minor as Atlas M0 in production
         ports: ["27017:27017"]
     steps:
       - uses: actions/checkout@v5

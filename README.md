@@ -13,7 +13,7 @@ A firm uploads its standard client agreement once. AI finds where every blank an
 You need Docker, [uv](https://docs.astral.sh/uv/), and Node 22 or newer.
 
 ```bash
-docker run -d --name mongo -p 27017:27017 mongo:8        # database
+docker run -d --name mongo -p 27017:27017 mongo:8.0        # database
 
 cd backend
 cp .env.example .env                                      # defaults work for local dev

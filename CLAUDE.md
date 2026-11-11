@@ -70,7 +70,7 @@ render.yaml              Render Blueprint
 
 ```bash
 # Local Mongo (there is no local mongod; use Docker)
-docker run -d --name mongo -p 27017:27017 mongo:8
+docker run -d --name mongo -p 27017:27017 mongo:8.0
 
 # Backend
 cd backend
