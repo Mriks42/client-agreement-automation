@@ -9,14 +9,16 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
-# Runners pinned to ubuntu-24.04: ubuntu-latest moved to Ubuntu 26 (kernel 6.19+) in Oct 2026,
-# and MongoDB 8.0 refuses to start on kernels >= 6.19 (SERVER-121912). Atlas is unaffected.
+# CI runs MongoDB 7.0, not 8.0 like Atlas: GitHub's runners now run 6.19+ kernels, where
+# MongoDB 8.0+ refuses to start (TCMalloc/rseq; SERVER-121912, still open as SERVER-136848).
+# 7.0 uses the older allocator and is unaffected. We use no 8.0-only features, and local dev
+# (mongo:8.0) plus Atlas cover 8.0. Revisit when SERVER-136848 ships.
 jobs:
   backend:
     runs-on: ubuntu-24.04
     services:
       mongo:
-        image: mongo:8.0  # same major.minor as Atlas M0 in production
+        image: mongo:7.0  # see note at top
         ports: ["27017:27017"]
     defaults:
       run:
@@ -38,6 +40,7 @@ jobs:
         if: failure()
         working-directory: .
         run: |
+          echo "::error::kernel $(uname -r)"
           echo "::error::mongo status: $(docker inspect -f '{{.State.Status}} exit={{.State.ExitCode}} oom={{.State.OOMKilled}}' ${{ job.services.mongo.id }})"
           docker logs --tail 8 ${{ job.services.mongo.id }} 2>&1 | cut -c1-300 | while IFS= read -r line; do echo "::warning::$line"; done
       - run: uv run ruff check .
@@ -70,7 +73,7 @@ jobs:
     needs: [backend, frontend]
     services:
       mongo:
-        image: mongo:8.0  # same major.minor as Atlas M0 in production
+        image: mongo:7.0  # see note at top
         ports: ["27017:27017"]
     steps:
       - uses: actions/checkout@v5
