@@ -39,7 +39,7 @@
       "required": true
     },
     {
-      "page": 2,
+      "page": 1,
       "label": "Project fee (USD):",
       "nth": 1,
       "type": "text",

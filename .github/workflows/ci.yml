@@ -49,8 +49,9 @@ jobs:
       - run: uv run pytest -q
         env:
           TEST_MONGODB_URI: mongodb://localhost:27017
-      # Offline detection eval (heuristics only, no API cost). Enabled once evals land.
-      - run: if [ -f evals/run.py ]; then uv run python -m evals.run --offline; fi
+      # Offline detection eval (heuristics only, no API cost). There's no LibreOffice on the
+      # runner, so the DOCX fixture is skipped here; the docker job runs the full set.
+      - run: uv run python -m evals.run --offline
 
   frontend:
     runs-on: ubuntu-24.04
@@ -84,6 +85,8 @@ jobs:
         run: |
           docker run --rm agreement-app soffice --version
           docker run --rm agreement-app python -c "import pymupdf, anthropic, pymongo; print('ok')"
+      - name: Detection eval on every fixture, DOCX conversion included
+        run: docker run --rm -e APP_ENV=test agreement-app python -m evals.run --offline
       - name: Boots, serves the API and the SPA
         run: |
           docker run -d --name app --network host -e APP_ENV=dev -e PORT=8000 \

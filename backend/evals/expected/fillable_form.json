@@ -1,0 +1,59 @@
+{
+  "description": "Fillable PDF: text fields, checkbox, signature field",
+  "roles": {
+    "client": [
+      "client",
+      "customer"
+    ]
+  },
+  "fields": [
+    {
+      "page": 1,
+      "label": "Client name:",
+      "nth": 1,
+      "type": "text",
+      "filled_by": "sender",
+      "required": true
+    },
+    {
+      "page": 1,
+      "label": "Client email:",
+      "nth": 1,
+      "type": "text",
+      "filled_by": "sender",
+      "required": true
+    },
+    {
+      "page": 1,
+      "label": "Engagement start:",
+      "nth": 1,
+      "type": "date",
+      "filled_by": "sender",
+      "required": true
+    },
+    {
+      "page": 1,
+      "label": "I accept these terms:",
+      "nth": 1,
+      "type": "checkbox",
+      "filled_by": "client",
+      "required": true
+    },
+    {
+      "page": 1,
+      "label": "Client signature:",
+      "nth": 1,
+      "type": "signature",
+      "filled_by": "client",
+      "required": true
+    },
+    {
+      "page": 1,
+      "label": "Date:",
+      "nth": 1,
+      "type": "date_signed",
+      "filled_by": "client",
+      "required": true
+    }
+  ]
+}
