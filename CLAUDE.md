@@ -64,7 +64,7 @@ _Last updated: Sun Nov 15, 2026 (afternoon), end of Day 4. Day 4 finished a day 
   - Drawn signatures are stamped on the line at the left.
 - **Verified:**
   - **Local, headless Chrome:** the whole flow, with the client on an iPhone 13 viewport (typed signature) and the firm on desktop (drawn signature).
-  - **Live, with Claude** (2-page fixture, 13 s analysis): sign up, approve, new file, preview, send, Copy signing link, client signs, firm countersigns from its copied link, "Signed: ready to start work". The Gmail API accepted both signing emails, sent to plus-addresses of the sending inbox. **Inbox vs spam placement still needs checking in that inbox.**
+  - **Live, with Claude** (2-page fixture, 13 s analysis): sign up, approve, new file, preview, send, Copy signing link, client signs, firm countersigns from its copied link, "Signed: ready to start work". Both signing emails, sent to plus-addresses of the sending inbox, landed in its **Primary** tab. But mail an account sends itself is trusted by Gmail, so this proves delivery and formatting, not placement for an outside recipient. **Still to do: one send to an address on another account or provider** (the Day 1 email to an outside address went to spam).
   - Tests: 112 backend tests pass (cross-org 404 on every file endpoint, stale revisions, token storage, decline, void, reminders, expiry, a failed email), plus ruff, mypy, typecheck, lint and build. CI is green.
 - **Known gaps, accepted:**
   - Finalize isn't built yet (Day 5).
