@@ -46,7 +46,7 @@ _Last updated: Sun Nov 15, 2026 (morning), end of Day 3. Still two days behind t
   - The review editor: fields overlaid in percentages of the page's point size; click to edit; drag to move; corners to resize; click or drag to add; Delete, arrow-key nudges and undo; signers with order. It shows the AI notes and any fallback, warns about unsaved changes, and has Approve.
 - **Verified in headless Chrome** (puppeteer-core against the local Chrome, run from a scratch folder rather than the repo): sign up, upload, review, rename and drag a field, add a field, save, approve.
   - **Live, with Claude:** a 2-page PDF took 16 s (13 fields, both signers in the right order). A DOCX took 10 s to convert during upload, then 13 s to analyze (9 fields).
-  - **Local, keyword rules only:** the 7-page Common Paper PSA gave 160 fields.
+  - **Live, with Claude, Common Paper PSA (6 pages, the 156-blank template):** 137 s and 152 fields. Both signature blocks were found in the document (pages 2 and 6), so no page was appended. Customer signs 1st and Provider 2nd, with 10 fields each. The notes were useful (pre-ticked option boxes, delete unused optional rows). With keyword rules only, the same document gives 160 fields plus an appended signature page.
   - Tests: 100 backend tests pass, plus ruff, mypy, typecheck, lint and build. CI is green.
 - **Known gaps, accepted:**
   - The editor is desktop-first; it renders on a phone but isn't comfortable there.
