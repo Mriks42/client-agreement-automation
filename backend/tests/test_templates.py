@@ -308,10 +308,8 @@ def test_notes_never_show_internal_ids() -> None:
         == "Checkboxes on pages 2 and 3 appear pre-ticked ([ x ]) in the template."
     )
     assert (
-        svc.readable_note(
-            "Top rules above the Signature rows (p2-s15/16, p6-s3/4) were treated as decorative."
-        )
-        == "Top rules above the Signature rows (blanks on pages 2 and 6) were treated as decorative."
+        svc.readable_note("Rules above the signature rows (p2-s15/16, p6-s3/4) look decorative.")
+        == "Rules above the signature rows (blanks on pages 2 and 6) look decorative."
     )
     assert svc.readable_note("Only Customer Covered Claims (p3-s7) is a slot.") == (
         "Only Customer Covered Claims (a blank on page 3) is a slot."
