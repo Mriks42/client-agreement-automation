@@ -101,7 +101,7 @@ function Closed({ v, token }: { v: SignView; token: string }) {
     },
     completed: {
       title: 'Everyone has signed',
-      body: <p>{v.agreement_name} is complete. The signed copy is sent to every party by email.</p>,
+      body: <p>{v.agreement_name} is complete. We’ll email the signed copy, with its audit certificate, to every party.</p>,
     },
     declined: {
       title: 'You declined to sign',

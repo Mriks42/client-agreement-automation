@@ -14,6 +14,7 @@ _Last updated: Sun Nov 15, 2026 (afternoon), end of Day 4. Day 4 finished a day 
   4. Email the signed PDF to every signer and to the sender with `enqueue_email` (attachment by blob id, one dedupe key per address). Record a `finalized` event.
   5. UI: **Download signed agreement** on the file page and on the signer's "completed" page (by token). The banner already switches on `finalized_at`. If the job dies, show it on the file page with a **Try again** button (re-enqueue it).
 - **Exit criterion:** on the live app, a fully signed file produces the signed PDF with a certificate page, every party receives it by email, and the file page downloads it.
+- **Heads-up for deploying it:** the live DB already holds completed files whose `finalize_file` jobs are waiting. They run as soon as the handler deploys, and that's the first real test. One was signed end to end by the owner on Nov 15, with real emails (client at an outside Gmail, firm at the sending inbox), so both should receive the signed PDF. The files from the automated live runs were sent by `e2e+…@example.com` accounts, so their copies to the sender will bounce into the sending inbox ("Address not found"). That's expected.
 - **Then, Monday evening: the blind-test round** (plan below).
 
 **Blind-test round (Mon evening, about 2.5 h and $2–3 of credit).** The grade is one live run on an agreement we've never seen, so measure the whole path on six more unseen agreements, judged on the first run, and fix only what would break Anthony's path.
@@ -64,6 +65,7 @@ _Last updated: Sun Nov 15, 2026 (afternoon), end of Day 4. Day 4 finished a day 
   - Drawn signatures are stamped on the line at the left.
 - **Verified:**
   - **Local, headless Chrome:** the whole flow, with the client on an iPhone 13 viewport (typed signature) and the firm on desktop (drawn signature).
+  - **Live, by the owner, with real emails:** the client signed from the invitation in an outside Gmail inbox, and the firm countersigned from its own invitation email; the file completed. It showed that the AI's field labels read oddly to a signer ("Client signer title"), so the signing page now shows plain labels ("Title") with a hint.
   - **Live, with Claude** (2-page fixture, 13 s analysis): sign up, approve, new file, preview, send, Copy signing link, client signs, firm countersigns from its copied link, "Signed: ready to start work". Both signing emails, sent to plus-addresses of the sending inbox, landed in its Primary tab. Then the owner sent a file to an outside personal Gmail account: it landed in the **Inbox, not spam**. It showed as from "Acme Test Co", with Reply-To the firm user, passed Gmail's sender checks (mailed-by and signed-by gmail.com), and the file page switched to "Emailed to …" on its own. **Not yet checked: Outlook or Microsoft 365 inboxes.** Copy signing link and the check-spam hint cover those.
   - Tests: 112 backend tests pass (cross-org 404 on every file endpoint, stale revisions, token storage, decline, void, reminders, expiry, a failed email), plus ruff, mypy, typecheck, lint and build. CI is green.
 - **Known gaps, accepted:**
