@@ -28,7 +28,7 @@ _Last updated: Sun Nov 15, 2026 (early morning), end of Day 2. Day 2 ran two day
     - an Approve button.
 - **Exit criterion:** on the live app, sign up, upload an agreement (for example `backend/samples/commonpaper-psa-cover.pdf`), see the proposed fields, edit one, and approve.
 
-**Decision the owner still has to make:** whether to apply DECISIONS.md "If behind" cuts now. I recommend yes, in the documented order: the "if time allows" items, then the verify page, branding, bounce detection, and the template-versioning UI. Record the decision in DECISIONS.md.
+**Cuts applied (Nov 15):** the "if time allows" items, the verify page, logo and colour branding, bounce detection, and the template-versioning UI. Don't build them. The API and webhooks stay in scope, scheduled last. See DECISIONS.md "If behind schedule".
 
 **Remaining schedule** (it replaces the original day plan after the slip):
 - **Sun:** Day 3, templates (above).

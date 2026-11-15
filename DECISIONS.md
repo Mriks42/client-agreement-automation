@@ -120,7 +120,7 @@ The brief says to make a reasonable decision when something is unclear and to wr
   - (a) SHA-256 hashes, an audit certificate page, and a public verify page
   - (b) a PAdES digital signature on the PDF
 - **Decision:** (a).
-- **What it covers:** the completed PDF gets an appended certificate page. It lists the document ID, the hash of the original agreement, each signer's events, and the verification method. The final file's hash is stored, and anyone can upload a PDF to the verify page to check it.
+- **What it covers:** the completed PDF gets an appended certificate page. It lists the document ID, the hash of the original agreement, each signer's events, and the verification method. The final file's hash is stored, and anyone can upload a PDF to the verify page to check it. *(Nov 15: the verify page is cut for schedule. The certificate and the stored hashes stay, and anyone can still check a copy by comparing its SHA-256 with the one on the certificate.)*
 - **Why not PAdES:**
   - With a self-signed certificate, Acrobat shows "signature validity unknown", which looks worse than having no signature.
   - A trusted (AATL) certificate costs money.
@@ -169,7 +169,7 @@ The brief says to make a reasonable decision when something is unclear and to wr
 - **Decision:** (c). Email is sent from a dedicated Gmail account, behind an `EmailSender` interface.
   - The sender display name is the firm's name.
   - Reply-To is the firm user's own address, so replies reach a person.
-  - Bounces are detected by polling the sending inbox for delivery-failure notices and flagging the recipient on the file.
+  - Bounces are detected by polling the sending inbox for delivery-failure notices and flagging the recipient on the file. *(Nov 15: cut for schedule. A signer who never receives the email is covered by the copy-link fallback and by resending to a corrected address.)*
   - The Google OAuth app is published to "In production", because refresh tokens in "Testing" mode expire after 7 days.
 - **Why:**
   - (b) doesn't work: Render's free tier has blocked outbound SMTP ports since September 2025.
@@ -237,10 +237,10 @@ The brief says to make a reasonable decision when something is unclear and to wr
 
 9. **Automatic reminders** (day 2 and day 5 by default), **expiry** (30 days), **void**, and **resend to a corrected email**. Chasing signatures is the manual work the client is complaining about.
 10. **Public REST API with API keys and idempotency keys**, and **signed outbound webhooks** with retries and a delivery log. This is how "every file" becomes truly automatic: the firm's own systems open files and hear back when they're signed (D4).
-11. **Monitoring.** Error tracking (Sentry), a health endpoint, structured logs, a failed-jobs page with retry, and bounce detection. You can't run what you can't see.
-12. **Per-company branding:** logo, colour, and sender name. Clients should see the firm's name, not mine, and the client wants to resell this.
-13. **Verify page.** Anyone can check that a PDF is the unaltered signed original (D7).
-14. **Template versioning.** Each file stays pinned to the exact version it was sent with, so editing the agreement never changes what someone already signed.
+11. **Monitoring.** Error tracking (Sentry), a health endpoint, structured logs, a failed-jobs page with retry, and bounce detection. You can't run what you can't see. *(Bounce detection is cut; see the Nov 15 cuts below.)*
+12. **Per-company branding:** logo, colour, and sender name. Clients should see the firm's name, not mine, and the client wants to resell this. *(Logo and colour are cut. Emails and the signing page still show the firm's name, taken from signup.)*
+13. **Verify page.** Anyone can check that a PDF is the unaltered signed original (D7). *(Cut.)*
+14. **Template versioning.** Each file stays pinned to the exact version it was sent with, so editing the agreement never changes what someone already signed. *(The pinning stays. Only the UI for browsing old versions is cut.)*
 15. **Detection eval harness.** Synthetic agreements covering:
     - two parties, one party, and side-by-side signature blocks;
     - bracket placeholders, a DOCX, and initials on every page;
@@ -250,7 +250,7 @@ The brief says to make a reasonable decision when something is unclear and to wr
 
     It turns "works on agreements it has never seen" from a hope into a measured number. CI runs it offline on every push, inside the production image so the DOCX fixture is included.
 
-**If time allows:** team invites, bulk file creation from CSV, in-app countersigning for the logged-in user, and automated browser end-to-end tests.
+**If time allows:** team invites, bulk file creation from CSV, in-app countersigning for the logged-in user, and automated browser end-to-end tests. *(All cut on Nov 15; see "If behind schedule" below.)*
 
 ## What I'm deliberately leaving out, and why
 
@@ -271,6 +271,18 @@ The brief says to make a reasonable decision when something is unclear and to wr
 | SOC 2, data residency, custom retention policies | Necessary to sell to larger firms, and listed as the path to production. They aren't buildable in a week. |
 
 **If behind schedule, I cut in this order:** the "if time allows" items, then the verify page, then branding, then bounce detection, then the template-versioning UI. The API and webhooks go last, because they are the automation story. Reliability on the graded path is never cut.
+
+**Cuts applied on Nov 15.** Day 2 finished two days late, so I applied the whole list above except the last item. What that means in the product:
+
+| Cut | What remains |
+|---|---|
+| Team invites, bulk CSV, in-app countersigning, browser end-to-end tests | Each company has one login. The firm countersigns from its own signing email, like any signer. Each step of the graded path gets a manual run on the live app instead of a browser test. |
+| Verify page | The certificate page and the stored SHA-256 hashes (D7). |
+| Logo and colour branding | The firm's name, from signup, on emails and the signing page. |
+| Bounce detection | Copy signing link, the check-spam prompt, and resend to a corrected email (D11). |
+| Template-versioning UI | Every file keeps a snapshot of the template version it was sent with. Editing an approved template creates a new version that needs approval again. You can't browse old versions. |
+
+The API and webhooks stay in scope, scheduled for Tuesday morning after finalization. They are next in line if Tuesday runs short.
 
 ## Known limitations and the path to production
 
@@ -300,3 +312,4 @@ The brief says to make a reasonable decision when something is unclear and to wr
 | 2026-11-15 | First Claude eval: 68/68 blanks and signature blocks on 10/10 fixtures, at about 4–6¢ and about 10 s per agreement. That's well under the "under $1" budget in D12. |
 | 2026-11-15 | I ran a blind test on a public template, the Common Paper Professional Services Agreement cover page. It found both signature blocks correctly, but exposed extraction gaps: `[XX]` placeholders, `[ ]` and `( )` option boxes, long instruction placeholders, and table rules taken for blanks. Those are fixed, with a new fixture and tests. Cost and latency grow with the number of blanks, at roughly 1 s and 0.25¢ each, so a 150-blank template takes about 2.5 minutes and about 40¢. That's still under D12's "under $1". The LLM timeout is now 300 s, and the analyze job must hold its lease longer than that. |
 | 2026-11-15 | I ran two more blind tests, judged on the first run. On a State Bar of California fee agreement (6 pages, PDF), every blank was found and its unusual signature layout came out right. On the Bonterms PSA cover page (DOCX), the signature blocks were right but it missed company, email and postal blanks that have only empty space after the label. Fixes: the label-gap rule now covers party-detail labels, and an instruction bracket next to a blank is removed when the blank is filled. I also added stamping, which writes values into the PDF (`pdf_engine.stamp`; values shrink to fit per D3, and placeholder text is removed). It was planned for finalization, but I pulled it forward so a full preview could be shown with `scripts/demo_sign.py`. |
+| 2026-11-15 | Applied the "If behind schedule" cuts, because Day 2 finished two days late. Cut: the "if time allows" items, the verify page, logo and colour branding, bounce detection, and the template-versioning UI. Hashes, the certificate page, per-file version snapshots, copy-link, and resend all stay. The API and webhooks stay in scope, scheduled last. Details are in the table under "If behind schedule". |
