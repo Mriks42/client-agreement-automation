@@ -6,11 +6,23 @@ import {
   useDeleteFile,
   useEditRecipient,
   useFile,
+  useRetryFinalize,
   useSendFile,
   useVoidFile,
 } from '../api/hooks'
 import type { FileDetail, FileEvent, Recipient } from '../api/types'
-import { Alert, Button, Card, Dialog, FileStatusBadge, FullPageSpinner, TextArea, TextInput } from '../components/ui'
+import {
+  Alert,
+  Button,
+  Card,
+  Dialog,
+  DownloadLink,
+  FileStatusBadge,
+  FullPageSpinner,
+  Spinner,
+  TextArea,
+  TextInput,
+} from '../components/ui'
 import { ordinal } from '../lib/fields'
 import { formatDate } from '../lib/format'
 import { NotFoundPage } from './NotFoundPage'
@@ -180,16 +192,8 @@ function Tracking({ file: f }: { file: FileDetail }) {
 
 function StatusBanner({ file: f }: { file: FileDetail }) {
   const active = f.recipients.find((r) => r.status === 'active')
-  if (f.status === 'completed') {
-    return (
-      <Alert tone="success" title="Signed: ready to start work">
-        Everyone signed{f.completed_at ? ` ${formatDate(f.completed_at)}` : ''}.{' '}
-        {f.finalized_at
-          ? 'The signed agreement, with its audit certificate, was emailed to every signer.'
-          : 'The signed copy, with its audit certificate, is being prepared and will be emailed to every signer.'}
-      </Alert>
-    )
-  }
+  if (f.status === 'completed') return <Completed file={f} />
+
   if (f.status === 'declined') {
     const r = f.recipients.find((x) => x.status === 'declined')
     return (
@@ -230,6 +234,67 @@ function StatusBanner({ file: f }: { file: FileDetail }) {
       )}
       <p className="mt-1 text-xs">Reminders go out automatically on day 2 and day 5{f.expires_at ? `. The link expires ${formatDate(f.expires_at)}` : ''}.</p>
     </Alert>
+  )
+}
+
+function Completed({ file: f }: { file: FileDetail }) {
+  const retry = useRetryFinalize(f.id)
+  const when = f.completed_at ? ` ${formatDate(f.completed_at)}` : ''
+  const failedCopies = f.events.filter((e) => e.type === 'email_failed' && e.data.reason === 'signed_copy')
+  if (f.finalize_error && !f.finalized_at) {
+    return (
+      <Alert tone="error" title="Everyone signed, but we couldn’t make the signed PDF">
+        <p>
+          The signatures are safe. Making the signed copy with its audit certificate failed: {f.finalize_error}
+        </p>
+        <Button className="mt-2" busy={retry.isPending} onClick={() => retry.mutate()}>
+          Try again
+        </Button>
+        {retry.error && <p className="mt-2">{retry.error.message}</p>}
+      </Alert>
+    )
+  }
+  if (!f.finalized_at) {
+    return (
+      <Alert tone="success" title="Signed: ready to start work">
+        <p className="flex items-start gap-2">
+          <Spinner className="mt-0.5 h-4 w-4 shrink-0" />
+          <span>
+            Everyone signed{when}. The signed copy, with its audit certificate, is being prepared. It will be emailed to
+            every signer and to you.
+          </span>
+        </p>
+      </Alert>
+    )
+  }
+  return (
+    <div className="space-y-3">
+      <Alert tone="success" title="Signed: ready to start work">
+        <p>
+          Everyone signed{when}. The signed agreement, with its audit certificate, was emailed to every signer and to
+          you.
+        </p>
+        <DownloadLink href={`/api/files/${f.id}/signed.pdf`} className="mt-3">
+          Download signed agreement
+        </DownloadLink>
+        {f.final_sha256 && (
+          <p className="mt-3 text-xs">
+            SHA-256 of the signed PDF:{' '}
+            <span className="font-mono break-all select-all">{f.final_sha256}</span>
+          </p>
+        )}
+      </Alert>
+      {failedCopies.length > 0 && (
+        <Alert tone="warning" title="Some copies couldn’t be emailed">
+          <ul className="list-disc pl-5">
+            {failedCopies.map((e, i) => (
+              <li key={i}>{String(e.data.to ?? '')}</li>
+            ))}
+          </ul>
+          <p className="mt-1">Download the signed agreement above and send it to them yourself.</p>
+        </Alert>
+      )}
+    </div>
   )
 }
 
@@ -387,7 +452,13 @@ function describe(e: FileEvent): string {
     case 'reminded':
       return `Reminder sent to ${who}`
     case 'email_failed':
-      return `Email to ${d.to} failed`
+      return d.reason === 'signed_copy' ? `The signed copy couldn’t be emailed to ${d.to}` : `Email to ${d.to} failed`
+    case 'finalized':
+      return 'Signed PDF with audit certificate made, and emailed to everyone'
+    case 'finalize_failed':
+      return 'Making the signed PDF failed'
+    case 'finalize_retried':
+      return `${by} asked to make the signed PDF again`
     case 'viewed':
       return `${who} opened the agreement`
     case 'consented':
@@ -422,9 +493,9 @@ function Timeline({ events }: { events: FileEvent[] }) {
         <li key={`${e.at}-${i}`} className="relative text-sm">
           <span
             className={`absolute -left-[21px] top-1.5 h-2.5 w-2.5 rounded-full ring-2 ring-white ${
-              e.type === 'signed' || e.type === 'completed'
+              e.type === 'signed' || e.type === 'completed' || e.type === 'finalized'
                 ? 'bg-emerald-500'
-                : e.type === 'declined' || e.type === 'email_failed' || e.type === 'voided'
+                : e.type === 'declined' || e.type === 'email_failed' || e.type === 'voided' || e.type === 'finalize_failed'
                   ? 'bg-red-500'
                   : 'bg-slate-300'
             }`}

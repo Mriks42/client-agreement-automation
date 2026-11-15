@@ -4,7 +4,7 @@ import { ApiError, errorProblems } from '../api/client'
 import { useConsent, useDecline, useSignView, useSubmitSignature } from '../api/hooks'
 import type { Mark, SignField, SignView } from '../api/types'
 import { SignatureDialog } from '../components/signing/SignatureDialog'
-import { Alert, Button, Dialog, FullPageSpinner, Spinner, TextArea } from '../components/ui'
+import { Alert, Button, Dialog, DownloadLink, FullPageSpinner, Spinner, TextArea } from '../components/ui'
 import { PRODUCT_NAME } from '../lib/product'
 import { INK, signerHint, signerLabel, TYPED_STYLE } from '../lib/signing'
 
@@ -101,7 +101,25 @@ function Closed({ v, token }: { v: SignView; token: string }) {
     },
     completed: {
       title: 'Everyone has signed',
-      body: <p>{v.agreement_name} is complete. We’ll email the signed copy, with its audit certificate, to every party.</p>,
+      body: v.signed_pdf_ready ? (
+        <>
+          <p>
+            {v.agreement_name} is complete. Your signed copy, with its audit certificate, has been emailed to{' '}
+            {v.signer.email}. You can also download it here.
+          </p>
+          <DownloadLink href={`/api/sign/${token}/signed.pdf`} className="w-full sm:w-auto">
+            Download signed agreement
+          </DownloadLink>
+        </>
+      ) : (
+        <p className="flex items-start gap-2">
+          <Spinner className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />
+          <span>
+            {v.agreement_name} is complete. We’re preparing the signed copy, with its audit certificate. It will be
+            emailed to every party, and you can download it here in a moment.
+          </span>
+        </p>
+      ),
     },
     declined: {
       title: 'You declined to sign',

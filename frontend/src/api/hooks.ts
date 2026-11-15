@@ -132,8 +132,15 @@ export function useFile(id: string) {
   return useQuery({
     queryKey: ['file', id],
     queryFn: () => api.get<FileDetail>(`/api/files/${id}`),
-    // While it's out for signature, keep the timeline current.
-    refetchInterval: (q) => (q.state.data && LIVE.has(q.state.data.status) ? 5000 : false),
+    // While it's out for signature, keep the timeline current; once signed, until the signed
+    // PDF is ready (or making it failed).
+    refetchInterval: (q) => {
+      const f = q.state.data
+      if (!f) return false
+      if (LIVE.has(f.status)) return 5000
+      if (f.status === 'completed' && !f.finalized_at && !f.finalize_error) return 3000
+      return false
+    },
   })
 }
 
@@ -172,6 +179,10 @@ export function useVoidFile(id: string) {
   )
 }
 
+export function useRetryFinalize(id: string) {
+  return useFileMutation(() => api.post<FileDetail>(`/api/files/${id}/finalize`))
+}
+
 export function useEditRecipient(id: string) {
   return useFileMutation(
     (vars: { recipientId: string; name?: string; email?: string; resend?: boolean }) => {
@@ -208,6 +219,12 @@ export function useSignView(token: string) {
     queryFn: () => api.get<SignView>(`/api/sign/${token}`),
     staleTime: 60_000,
     refetchOnWindowFocus: false,
+    // Right after the last signature, the signed PDF takes a few seconds to make. Stop after
+    // about 3 minutes: if it failed, the sender sees that and the copy arrives by email.
+    refetchInterval: (q) =>
+      q.state.data?.state === 'completed' && !q.state.data.signed_pdf_ready && q.state.dataUpdateCount < 60
+        ? 3000
+        : false,
   })
 }
 

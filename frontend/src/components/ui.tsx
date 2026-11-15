@@ -28,6 +28,22 @@ export function Button({ variant = 'primary', busy, className = '', children, ..
   )
 }
 
+/** A file download that looks like a button (a plain link, so the browser handles the file). */
+export function DownloadLink({ href, children, className = '' }: { href: string; children: ReactNode; className?: string }) {
+  return (
+    <a
+      href={href}
+      download
+      className={`inline-flex items-center justify-center gap-2 rounded-lg px-3.5 py-2 text-sm font-medium transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand ${VARIANTS.primary} ${className}`}
+    >
+      <svg className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor" aria-hidden>
+        <path d="M10 3a1 1 0 0 1 1 1v7.59l2.3-2.3a1 1 0 1 1 1.4 1.42l-4 4a1 1 0 0 1-1.4 0l-4-4a1 1 0 1 1 1.4-1.42L9 11.6V4a1 1 0 0 1 1-1ZM4 15a1 1 0 0 1 1 1h10a1 1 0 1 1 0 2H5a2 2 0 0 1-2-2 1 1 0 0 1 1-1Z" />
+      </svg>
+      {children}
+    </a>
+  )
+}
+
 export function Spinner({ className = 'h-5 w-5' }: { className?: string }) {
   return (
     <svg className={`animate-spin ${className}`} viewBox="0 0 24 24" fill="none" aria-hidden>

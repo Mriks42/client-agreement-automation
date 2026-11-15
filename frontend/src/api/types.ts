@@ -161,6 +161,10 @@ export type FileDetail = FileSummary & {
   voided_at: string | null
   void_reason: string | null
   finalized_at: string | null
+  /** SHA-256 of the signed PDF (with its certificate), once it exists. */
+  final_sha256: string | null
+  /** Why making the signed PDF failed; the file page offers Try again. */
+  finalize_error: string | null
   events: FileEvent[]
 }
 
@@ -198,6 +202,8 @@ export type SignView = {
   parties: { role_label: string; name: string; status: RecipientStatus; you: boolean }[]
   expires_at: string | null
   signed_at: string | null
+  /** The signed PDF can be downloaded with this link (everyone signed, and it's been made). */
+  signed_pdf_ready: boolean
   decline_reason: string | null
   void_reason: string | null
 }
