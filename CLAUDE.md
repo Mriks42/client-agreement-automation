@@ -4,40 +4,63 @@ Context for anyone working in this repo, human or AI. `DECISIONS.md` explains *w
 
 ## Current status (update at the end of every work session)
 
-_Last updated: Sun Nov 15, 2026 (early morning), end of Day 2. Day 2 was planned for Thu Nov 12, so the project is two days behind._
+_Last updated: Sun Nov 15, 2026 (early morning), end of Day 2. Day 2 ran two days late (planned for Thu Nov 12)._
+
+**Next session: Day 3, templates.** This is the first half of the graded path: Anthony signs up, uploads the MIND agreement, reviews the proposed fields and approves them.
+- **Backend:**
+  1. **Auth (D14).** `orgs` and `users` collections; signup, login and logout; argon2 hashing (`argon2-cffi` is already a dependency); an httpOnly SameSite session cookie signed with `SESSION_SECRET`; a `require_user` dependency; repository helpers that require `org_id`; tests that cross-org access returns 404.
+  2. **Template upload.** `POST /api/templates` (multipart) runs `services/ingest.ingest`, stores the original and the normalized PDF in GridFS, creates the template with status `analyzing`, and enqueues an `analyze_template` job.
+  3. **The `analyze_template` job.** It calls `detection.pipeline.analyze`. It stores the returned `pdf`, which may include an appended signature page, along with the roles, fields, warnings and `detector`/`fallback_reason`, then sets status `needs_review`. On failure it sets `analysis_failed` and gives a next step (place fields manually, or upload a PDF). The job needs a lease of **at least 10 minutes**. The worker's `LEASE` is a global 5 minutes and the LLM budget is up to 330 s, so add a per-`JobType` lease to `worker/queue.py`.
+  4. **Other template endpoints.**
+     - `GET` the list.
+     - `GET /{id}` returns status, fields, roles and warnings.
+     - `GET /{id}/pages/{n}.png` uses `pdf_engine.render_page_png`.
+     - `PUT` saves edited fields and roles.
+     - `POST /{id}/approve` makes an atomic `needs_review → active` transition.
+- **Frontend:**
+  - Signup and login pages, and a templates list.
+  - An upload page that polls while analysis runs and says it "usually takes 1–3 minutes".
+  - **The review editor:**
+    - page images with the fields overlaid, scaled from PDF points;
+    - click a field to edit its type, who fills it, its label and whether it's required;
+    - drag to move or resize, add, and delete fields;
+    - show the AI's warnings;
+    - an Approve button.
+- **Exit criterion:** on the live app, sign up, upload an agreement (for example `backend/samples/commonpaper-psa-cover.pdf`), see the proposed fields, edit one, and approve.
+
+**Decision the owner still has to make:** whether to apply DECISIONS.md "If behind" cuts now. I recommend yes, in the documented order: the "if time allows" items, then the verify page, branding, bounce detection, and the template-versioning UI. Record the decision in DECISIONS.md.
+
+**Remaining schedule** (it replaces the original day plan after the slip):
+- **Sun:** Day 3, templates (above).
+- **Mon:** files and signing.
+  - The new-file form, built from the template's sender fields.
+  - A preview of the exact PDF to be sent, using `pdf_engine.stamp`, then Send.
+  - Recipients and signing tokens, sequential routing, emails plus the copy-link fallback (D11).
+  - The signing page: consent, guided fields, `signature_pad`, decline.
+  - Reminders.
+- **Tue morning:** finalize. Stamp every value, add the audit certificate page and SHA-256 hashes, email the signed PDF to every party, and mark the file "Signed: ready to start work". Then polish, and the API and webhooks if there's time.
+- **Hard stops:** feature freeze Tue 12:00, final deploy verified by 17:00, last commit by 20:00 MST.
 
 **Day 2 is done.**
-- **Document pipeline** (library code, not yet behind an endpoint or job):
+- **Document pipeline** (library code; Day 3 puts it behind an endpoint and a job):
   1. `services/ingest.py` checks magic bytes and size limits, and converts DOCX to PDF with LibreOffice.
   2. `pdf_engine.normalize_pdf` bakes in page rotation and strips JavaScript and attachments.
   3. `pdf_engine.extract` finds lines and candidate blanks with measured boxes.
   4. `detection/pipeline.analyze` labels them with Claude, or with heuristics if Claude fails.
   5. `detection/mapper` builds field rectangles and checks bounds and overlaps.
   6. Any role with nowhere to sign gets an appended signature page.
-- **Eval:** 11 synthetic fixtures. Four were added on Day 2: drawn rules with captions, label-only blocks with dot leaders and a table of contents, a fillable PDF form, and an order-form template with `[XX]`, option boxes and drafting notes.
-  - **Online (Claude, `claude-opus-5-5`, effort high), all 11 fixtures: 81/81 blanks (100%), signature blocks on 11/11, 0 false positives.** On the two documents with no signature block, Claude also lists the provider as a signer. That's reasonable, and the eval reports it as an extra role, not a failure.
-  - Offline (heuristics only), full set in the production image: 80/81 blanks (98.8%), signature blocks on 11/11, 0 false positives.
-- **Blind test** on a public template it was never tuned on: the Common Paper Professional Services Agreement cover page, 6 pages, DOCX.
-  - It found both signature blocks, each with 5 fields per party, in the right columns, and the parties in the right order (customer, then provider).
-  - The test exposed extractor gaps, now fixed and pinned by tests and the new fixture: `[XX]` was mistaken for a roman numeral; `[ # ]`, `[ ]` / `( )` option boxes and long multi-line instruction placeholders were missed; full-width table rules showed up as candidate blanks.
-  - After the fixes, 152 of 156 candidate blanks became sensible fields.
-- **Blind tests on two more unseen public documents**, judged on the first run before any fixes:
-  - A State Bar of California sample law-firm fee agreement (6-page PDF): every blank found. Its unusual signature page (signature line above a "CLIENT" caption, "DATED:" lines in the opposite column, firm signs "By:") came out entirely right. 31 s, about 21¢.
-  - The Bonterms PSA cover page (1-page DOCX): both signature blocks right. It missed "Company:", "Email:" and "Postal mail:" blanks that have only empty space after the label. 16 s, about 8¢.
-  - Fixes since: the label-gap rule now also knows party-detail labels (company, email, address, phone), so Company is detected. An instruction bracket next to a blank (`$____ [PROVIDE AMOUNT]`) is removed when the blank is filled.
-  - Also fixed: a blank right after a tick box ("☐ Email: ___") now gets an address field as well as the box, and an instruction that wraps onto the next line after its blank is removed too.
-  - Still open: letterhead words in capitals with no brackets ("LAW FIRM", "ADDRESS") aren't detected. That's deliberate, because treating capitalised words as blanks would make every heading a field. The reviewer adds these by hand.
-- **Cost and latency scale with the number of blanks:** about 5¢ and 10 s for a 1-page agreement, but about 41¢ and **144 s** for that 156-blank template. Time per call is roughly 1 s per blank, so the per-call timeout is now 300 s.
-  - The fixtures are cleaner than real agreements. Treat these numbers as a regression floor, not as proof of quality on the MIND agreement.
+  7. `pdf_engine.stamp` writes values into the PDF: placeholders removed, values shrunk to fit, typed signatures, ticks. Finalization will reuse it.
+- **Preview tool:** `uv run python -m scripts.demo_sign samples/<file>` writes a review PDF and a fake-signed PDF to `backend/samples/out/`. `backend/samples/` is git-ignored apart from its README.
+- **Eval:** 11 synthetic fixtures.
+  - **Online (Claude, `claude-opus-5-5`, effort high): 81/81 blanks, signature blocks on 11/11, 0 false positives.**
+  - Offline (heuristics only), full set in the production image: 80/81 blanks (98.8%), signature blocks on 11/11.
+  - The fixtures are cleaner than real agreements. Treat these numbers as a regression floor.
+- **Blind tests on three unseen public agreements:** the Common Paper PSA cover page (6-page DOCX), a State Bar of California fee agreement (6-page PDF) and the Bonterms PSA cover page (1-page DOCX).
+  - Every signature block, signer and signing order was right on the first run.
+  - The misses were per-client blanks: `[XX]`, option boxes, long instruction placeholders, "Company:"-style label gaps, a blank after a tick box, and instructions that wrap to the next line. All are now fixed and pinned by tests.
+  - Still open, deliberately: letterhead words in capitals with no brackets ("LAW FIRM", "ADDRESS") aren't detected; the reviewer adds them by hand.
+- **Cost and latency scale with the number of blanks:** about 5¢ and 10 s for a 1-page agreement, about 21¢ and 31 s for a 6-page letter, and about 41¢ and **144 s** for a 156-blank template. The per-call timeout is 300 s.
 - **CI** runs the offline eval in two places: the backend job, which skips the DOCX fixture, and inside the Docker image, which runs the full set.
-
-**Next: templates, the first half of the graded path.**
-- Before the MIND test: a blind check on one realistic agreement (PDF or DOCX) the pipeline has never seen.
-- Org signup and login.
-- A template upload endpoint that stores the PDF in GridFS and enqueues an `analyze_template` job, which calls `pipeline.analyze`.
-  - The job needs a lease of at least 10 minutes, because the worker's default `LEASE` is 5 minutes and the LLM budget is up to 330 s.
-  - The UI should say analysis usually takes 1–3 minutes.
-- A review editor: page images with fields overlaid, edit, then approve.
 
 **Infrastructure (Day 1, unchanged):**
 - **Live app:** https://kickoff-r713.onrender.com
