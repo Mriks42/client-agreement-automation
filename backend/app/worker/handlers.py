@@ -6,7 +6,8 @@ from typing import Any
 
 from bson import ObjectId
 
-from app.services import signing, templates
+from app.repo import Tenant
+from app.services import events, finalize, signing, templates
 from app.services.email import Attachment, EmailPermanentError, EmailSender, OutgoingEmail
 from app.services.email.outbox import SEND_EMAIL, enqueue_email
 from app.worker.queue import JobContext, JobType
@@ -57,9 +58,27 @@ async def handle_send_email(ctx: JobContext, payload: dict[str, Any]) -> None:
 
 
 async def on_email_dead(ctx: JobContext, payload: dict[str, Any], error: str) -> None:
-    # Feature code attaches context (file/recipient) via payload["ref"]; surfacing the failure
-    # on the file timeline is wired up with the files feature.
+    """A notice that names its file (`ref` and `org_id`) shows the failure on the file's
+    timeline, where the sender can download the signed copy and send it themselves."""
     log.error("email permanently failed", extra={"ref": payload.get("ref"), "error": error})
+    if not (payload.get("ref") and payload.get("org_id")):
+        return
+    tenant = Tenant(ctx.db, ObjectId(payload["org_id"]))
+    file = await tenant.get("files", payload["ref"], {"_id": 1})
+    if file is None:
+        return
+    await events.record(
+        tenant,
+        file["_id"],
+        "email_failed",
+        actor=events.SYSTEM,
+        data={
+            "reason": payload.get("ref_kind", "notice"),
+            "to": ", ".join(payload.get("to", [])),
+            "error": error.split("\n")[0][:300],
+        },
+        key=f"dead:{ctx.job['_id']}",
+    )
 
 
 async def handle_analyze_template(ctx: JobContext, payload: dict[str, Any]) -> None:
@@ -87,6 +106,14 @@ def build_registry() -> dict[str, JobType]:
             permanent_errors=(EmailPermanentError,),
         ),
         signing.EXPIRE_FILE: JobType(handler=signing.handle_expire_file),
+        signing.FINALIZE_FILE: JobType(
+            handler=finalize.handle_finalize_file,
+            # Backoff 20 s, 40 s, 80 s, 160 s: a stuck file shows Try again within minutes.
+            max_attempts=5,
+            on_dead=finalize.on_finalize_dead,
+            # Stamping a long agreement on the free tier's 0.1 CPU can be slow.
+            lease=timedelta(minutes=10),
+        ),
         templates.ANALYZE_TEMPLATE: JobType(
             handler=handle_analyze_template,
             # Detection already falls back to heuristics on any LLM problem, so a failure here

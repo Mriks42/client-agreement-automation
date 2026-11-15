@@ -219,22 +219,28 @@ async def mark_images(
     return images
 
 
-async def current_pdf(bucket: AsyncGridFSBucket, cache: BytesLRU, file: dict[str, Any]) -> bytes:
-    """The document as it stands: the sender's values (the prepared PDF that was previewed and
-    sent) plus the values of everyone who has signed so far."""
-    prepared = file["prepared"]["blob_id"]
+async def stamp_signed(bucket: AsyncGridFSBucket, file: dict[str, Any]) -> bytes:
+    """The prepared PDF (the sender's values, as previewed and sent) plus the values of everyone
+    who has signed so far. Uncached: callers hold STAMP_LOCK."""
+    pdf = await storage.get(bucket, file["prepared"]["blob_id"])
     signed = [r for r in file["recipients"] if r["status"] == "signed"]
-    key = ("file-pdf", file["_id"], prepared, len(signed))
+    if signed:
+        images = await mark_images(bucket, signed)
+        stamps = build_stamps(file["template"]["fields"], signed=signed, images=images)
+        pdf = await asyncio.to_thread(pdf_engine.stamp, pdf, stamps)
+    return pdf
+
+
+async def current_pdf(bucket: AsyncGridFSBucket, cache: BytesLRU, file: dict[str, Any]) -> bytes:
+    """The document as it stands, for page images and "Open as PDF" (cached)."""
+    signed = sum(1 for r in file["recipients"] if r["status"] == "signed")
+    key = ("file-pdf", file["_id"], file["prepared"]["blob_id"], signed)
     if (hit := cache.get(key)) is not None:
         return hit
     async with STAMP_LOCK:
         if (hit := cache.get(key)) is not None:
             return hit
-        pdf = await storage.get(bucket, prepared)
-        if signed:
-            images = await mark_images(bucket, signed)
-            stamps = build_stamps(file["template"]["fields"], signed=signed, images=images)
-            pdf = await asyncio.to_thread(pdf_engine.stamp, pdf, stamps)
+        pdf = await stamp_signed(bucket, file)
         cache.put(key, pdf)
     return pdf
 
@@ -338,6 +344,8 @@ async def view(s: Signer, client: ClientInfo) -> dict[str, Any]:
         ],
         "expires_at": file.get("expires_at"),
         "signed_at": r.get("signed_at"),
+        # The signed PDF with its certificate, downloadable by this link once it exists.
+        "signed_pdf_ready": state == "completed" and bool(file.get("finalized_at")),
         "decline_reason": r.get("decline_reason"),
         "void_reason": file.get("void_reason") if state == "voided" else None,
     }
@@ -555,7 +563,7 @@ async def submit(
         await schedule_signer(s.tenant, file["_id"], file["recipients"][nxt]["id"], now)
     else:
         await events.record(s.tenant, file["_id"], "completed", actor=SYSTEM)
-        # Flatten, certificate, hashes and the signed copy to every party: services/finalize.py.
+        # The signed PDF, its certificate and the copy to every party: services/finalize.py.
         await enqueue(
             s.tenant.db,
             FINALIZE_FILE,

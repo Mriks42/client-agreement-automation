@@ -9,7 +9,7 @@ from fastapi import APIRouter, HTTPException, Request, Response
 from pydantic import BaseModel, Field, StringConstraints
 
 from app.api.deps import client_info
-from app.api.files import render_cached
+from app.api.files import render_cached, signed_pdf_response
 from app.services import signing as svc
 from app.services.errors import Conflict, Invalid
 
@@ -83,6 +83,14 @@ async def page_image(token: str, page: int, request: Request) -> Response:
     pdf = await svc.current_pdf(request.app.state.db.blobs, request.app.state.page_cache, f)
     png = await render_cached(request, ("file", f["_id"], svc.page_rev(f), page), pdf, page)
     return Response(png, media_type="image/png", headers={"cache-control": "private, max-age=3600"})
+
+
+@router.get("/{token}/signed.pdf")
+async def signed_pdf(token: str, request: Request) -> Response:
+    s = await _signer(request, token)
+    if svc.signer_state(s.file, s.recipient) != "completed":
+        raise HTTPException(status_code=404, detail="There's no signed copy for this link.")
+    return await signed_pdf_response(request, s.file)
 
 
 @router.post("/{token}/consent", status_code=204)

@@ -552,5 +552,7 @@ def detail(f: dict[str, Any], evts: list[dict[str, Any]]) -> dict[str, Any]:
         "voided_at": f.get("voided_at"),
         "void_reason": f.get("void_reason"),
         "finalized_at": f.get("finalized_at"),
+        "final_sha256": f.get("final_sha256"),
+        "finalize_error": (f.get("finalize_error") or {}).get("error"),
         "events": [events.public(e) for e in evts],
     }

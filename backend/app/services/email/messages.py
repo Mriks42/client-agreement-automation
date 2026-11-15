@@ -140,6 +140,82 @@ def declined_notice(
     return Composed(subject, text, html)
 
 
+def _check_copy(sha256: str) -> str:
+    return (
+        "To check that a copy hasn't been changed, compare its SHA-256 with this one "
+        f"(the certificate explains how): {sha256}"
+    )
+
+
+def _people(names: list[str]) -> str:
+    return names[0] if len(names) == 1 else f"{', '.join(names[:-1])} and {names[-1]}"
+
+
+def signed_copy(
+    *,
+    org_name: str,
+    signer_name: str,
+    agreement_name: str,
+    sender_name: str,
+    parties: list[str],
+    sha256: str,
+    product: str,
+) -> Composed:
+    """To each signer when everyone has signed, with the signed PDF attached."""
+    first = signer_name.split()[0] if signer_name.strip() else "there"
+    subject = f"Signed: your copy of {agreement_name} with {org_name}"
+    lead = f"Everyone has signed {agreement_name}: {_people(parties)}."
+    attached = (
+        "Your copy is attached. It ends with an audit certificate showing who signed, "
+        "when, and how. Please keep it for your records."
+    )
+    contact = f"Questions? Reply to this email to reach {sender_name} at {org_name}."
+    footer_text = f"Sent by {product} on behalf of {org_name}."
+    check = _check_copy(sha256)
+    text = "\n\n".join([f"Hi {first},", lead, attached, contact, check, "--", footer_text]) + "\n"
+    html = _html(
+        preheader=lead,
+        heading=f"Signed: {agreement_name}",
+        paras=[escape(f"Hi {first},"), escape(lead), escape(attached), escape(contact)],
+        button=None,
+        footer=escape(check) + "<br><br>" + escape(footer_text),
+    )
+    return Composed(subject, text, html)
+
+
+def completed_notice(
+    *,
+    org_name: str,
+    agreement_name: str,
+    file_title: str,
+    parties: list[str],
+    sha256: str,
+    file_url: str,
+    product: str,
+) -> Composed:
+    """To the sender when everyone has signed, with the signed PDF attached."""
+    subject = f"Signed: {file_title} ({agreement_name}). Ready to start work"
+    lead = f"Everyone has signed {agreement_name} for {file_title}: {_people(parties)}."
+    attached = (
+        "The signed agreement is attached. It ends with an audit certificate showing who "
+        "signed, when, and how. Each signer has been emailed their own copy, and it's also on "
+        "the file page."
+    )
+    check = _check_copy(sha256)
+    text = (
+        f"{lead}\n\n{attached}\n\nOpen the file:\n{file_url}\n\n{check}\n\n"
+        f"--\n{product} for {org_name}\n"
+    )
+    html = _html(
+        preheader=lead,
+        heading="Signed: ready to start work",
+        paras=[escape(lead), escape(attached)],
+        button=("Open the file", file_url),
+        footer=escape(check) + "<br><br>" + escape(f"{product} for {org_name}"),
+    )
+    return Composed(subject, text, html)
+
+
 def expired_notice(
     *,
     org_name: str,

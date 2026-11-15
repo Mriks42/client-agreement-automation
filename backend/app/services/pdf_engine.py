@@ -7,6 +7,7 @@ Coordinates are PDF points with a top-left origin. Pages are 1-based in this mod
 """
 
 import re
+import unicodedata
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Literal
@@ -808,6 +809,57 @@ def stamp(data: bytes, stamps: list[Stamp]) -> bytes:
         return doc.tobytes(garbage=3, deflate=True)
 
 
+# The built-in PDF fonts (Helvetica, Times) only cover Latin-1: anything else is drawn as a
+# middle dot. Phones type curly quotes and dashes by default (O\u2019Brien), so those become
+# their plain forms.
+_PLAIN = str.maketrans(
+    {
+        "\u2018": "'",  # left single quote
+        "\u2019": "'",  # right single quote (iOS apostrophe)
+        "\u201a": "'",  # low single quote
+        "\u2032": "'",  # prime
+        "\u201c": '"',  # left double quote
+        "\u201d": '"',  # right double quote
+        "\u201e": '"',  # low double quote
+        "\u2033": '"',  # double prime
+        "\u2013": "-",  # en dash
+        "\u2014": "-",  # em dash
+        "\u2012": "-",  # figure dash
+        "\u2212": "-",  # minus sign
+        "\u2010": "-",  # hyphen
+        "\u2011": "-",  # non-breaking hyphen
+        "\u2026": "...",  # ellipsis
+        "\u2022": "\u00b7",  # bullet -> middle dot
+        "\u00a0": " ",  # no-break space
+        "\u2009": " ",  # thin space
+        "\u202f": " ",  # narrow no-break space
+        "\u200b": "",  # zero-width space
+        "\u0141": "L",  # L with stroke
+        "\u0142": "l",  # l with stroke
+        "\u0110": "D",  # D with stroke
+        "\u0111": "d",  # d with stroke
+        "\u0152": "OE",  # OE ligature
+        "\u0153": "oe",  # oe ligature
+        "\u0131": "i",  # dotless i
+        "\u20ac": "EUR",  # euro sign
+    }
+)
+
+
+def latin1(text: str) -> str:
+    """Text the built-in fonts can draw: typographic punctuation made plain, accents outside
+    Latin-1 dropped (a with ogonek becomes a), and anything else (other scripts) shown as "?"."""
+    out = []
+    for ch in text.translate(_PLAIN):
+        if ord(ch) < 256:
+            out.append(ch)
+            continue
+        base = unicodedata.normalize("NFKD", ch)
+        kept = "".join(c for c in base if ord(c) < 256 and not unicodedata.combining(c))
+        out.append(kept or "?")
+    return "".join(out)
+
+
 def _write(page: pymupdf.Page, s: Stamp) -> None:
     r = _prect(s.rect)
     if s.kind == "check":
@@ -819,7 +871,7 @@ def _write(page: pymupdf.Page, s: Stamp) -> None:
     if s.kind == "signature" and s.image:
         page.insert_image(_bottom_left(r, s.image), stream=s.image, keep_proportion=True)
         return
-    text = s.value.strip()
+    text = latin1(s.value.strip())
     if not text:
         return
     font = "tiit" if s.kind == "signature" else "helv"
@@ -864,6 +916,182 @@ def draw_fields(
             page.draw_rect(r, color=rgb, fill=rgb, fill_opacity=0.15, width=0.7)
             page.insert_text((r.x0 + 1, r.y0 + 5.5), label[:60], fontsize=5, color=rgb)
         return doc.tobytes(garbage=3, deflate=True)
+
+
+# ---- the signed artifact ----------------------------------------------------------------------
+@dataclass
+class CertRow:
+    label: str
+    value: str
+    mono: bool = False  # hashes and ids: fixed-width, so they're easy to compare by eye
+
+
+@dataclass
+class CertSection:
+    """A heading, then label/value rows, then paragraphs. A `minor` section (one signer) is
+    kept on one page; a major one may continue on the next."""
+
+    heading: str
+    rows: list[CertRow] = field(default_factory=list)
+    paras: list[str] = field(default_factory=list)
+    minor: bool = False
+
+
+_TEXT = (0.1, 0.12, 0.16)
+_MUTED = (0.38, 0.42, 0.48)
+_RULE = (0.82, 0.85, 0.89)
+_BODY = 8.5
+_LEAD = 1.38
+
+
+def finalize_pdf(
+    data: bytes, sections: list[CertSection], *, title: str, subtitle: str, footer: str
+) -> bytes:
+    """The signed agreement as delivered: form fields baked into the page (nothing left to fill
+    in or change) and the audit certificate appended after the last page."""
+    with pymupdf.open(stream=data, filetype="pdf") as doc:
+        doc.bake(annots=False, widgets=True)
+        last = doc[-1].rect
+        # Same size as the document, unless it's an odd small page: then US Letter.
+        width, height = (last.width, last.height) if last.width >= 420 else (612.0, 792.0)
+        w = _CertWriter(doc, width, height)
+        w.title(title, subtitle)
+        for s in sections:
+            w.section(s)
+        w.footers(footer)
+        return doc.tobytes(garbage=3, deflate=True)
+
+
+class _CertWriter:
+    def __init__(self, doc: pymupdf.Document, width: float, height: float) -> None:
+        self.doc = doc
+        self.width, self.height = width, height
+        self.left, self.right = 54.0, width - 54.0
+        self.top, self.bottom = 56.0, height - 58.0
+        self.label_w = 132.0
+        self.pages: list[int] = []  # numbers: a Page object goes stale as pages are added
+        self.page: pymupdf.Page | None = None
+        self.y = 0.0
+
+    # layout primitives
+    def new_page(self) -> None:
+        self.page = self.doc.new_page(width=self.width, height=self.height)
+        self.pages.append(self.page.number)
+        self.y = self.top
+
+    def room(self, need: float) -> None:
+        if self.page is None or self.y + need > self.bottom:
+            self.new_page()
+
+    def lines(
+        self,
+        x: float,
+        lines: list[str],
+        *,
+        size: float = _BODY,
+        font: str = "helv",
+        color: tuple[float, float, float] = _TEXT,
+    ) -> None:
+        assert self.page is not None
+        for i, line in enumerate(lines):
+            baseline = self.y + size + i * size * _LEAD
+            self.page.insert_text((x, baseline), line, fontsize=size, fontname=font, color=color)
+
+    @staticmethod
+    def block(n: int, size: float = _BODY) -> float:
+        return n * size * _LEAD
+
+    # blocks
+    def title(self, title: str, subtitle: str) -> None:
+        self.new_page()
+        assert self.page is not None
+        self.lines(self.left, [latin1(title)], size=17, font="hebo")
+        self.y += 26
+        sub = _wrap(latin1(subtitle), "helv", 10, self.right - self.left)
+        self.lines(self.left, sub, size=10, color=_MUTED)
+        self.y += self.block(len(sub), 10) + 10
+        self.page.draw_line((self.left, self.y), (self.right, self.y), color=_TEXT, width=0.8)
+        self.y += 14
+
+    def section(self, s: CertSection) -> None:
+        heading_size = 9.5 if s.minor else 11.0
+        rows = [self._row_lines(r) for r in s.rows]
+        paras = [_wrap(latin1(p), "helv", _BODY, self.right - self.left) for p in s.paras]
+        row_h = [self.block(max(len(a), len(b))) + 3 for a, b, _ in rows]
+        para_h = [self.block(len(p)) + 4 for p in paras]
+        head_h = heading_size * 1.4 + (8 if not s.minor else 4)
+        whole = head_h + sum(row_h) + sum(para_h) + 10
+        first = (row_h or para_h or [0.0])[0]
+        # A signer's block stays together; a long section at least keeps its heading with
+        # its first row.
+        fits_on_a_page = whole <= self.bottom - self.top
+        self.room(whole if s.minor and fits_on_a_page else head_h + first)
+        assert self.page is not None
+        self.lines(self.left, [latin1(s.heading)], size=heading_size, font="hebo")
+        self.y += heading_size * 1.4
+        if not s.minor:
+            self.page.draw_line((self.left, self.y), (self.right, self.y), color=_RULE, width=0.6)
+            self.y += 8
+        else:
+            self.y += 4
+        for (label, value, mono), h in zip(rows, row_h, strict=True):
+            self.room(h)
+            self.lines(self.left, label, color=_MUTED)
+            self.lines(self.left + self.label_w, value, font="cour" if mono else "helv")
+            self.y += h
+        for p, h in zip(paras, para_h, strict=True):
+            self.room(h)
+            self.lines(self.left, p)
+            self.y += h
+        self.y += 10
+
+    def _row_lines(self, r: CertRow) -> tuple[list[str], list[str], bool]:
+        value_w = self.right - self.left - self.label_w
+        label = _wrap(latin1(r.label), "helv", _BODY, self.label_w - 10)
+        value = _wrap(latin1(r.value or "-"), "cour" if r.mono else "helv", _BODY, value_w)
+        return label, value, r.mono
+
+    def footers(self, footer: str) -> None:
+        n = len(self.pages)
+        for i, number in enumerate(self.pages, 1):
+            page = self.doc[number]
+            text = latin1(f"Certificate page {i} of {n}  ·  {footer}")
+            page.draw_line(
+                (self.left, self.height - 40),
+                (self.right, self.height - 40),
+                color=_RULE,
+                width=0.5,
+            )
+            page.insert_text(
+                (self.left, self.height - 28), text, fontsize=7.5, fontname="helv", color=_MUTED
+            )
+
+
+def _wrap(text: str, font: str, size: float, width: float) -> list[str]:
+    """Greedy word wrap; a word too long for the line (a hash, a user agent) is split."""
+
+    def fits(s: str) -> bool:
+        return pymupdf.get_text_length(s, fontname=font, fontsize=size) <= width
+
+    out: list[str] = []
+    for para in text.split("\n"):
+        line = ""
+        for word in para.split():
+            candidate = f"{line} {word}" if line else word
+            if fits(candidate):
+                line = candidate
+                continue
+            if line:
+                out.append(line)
+            while not fits(word):
+                cut = len(word) - 1
+                while cut > 1 and not fits(word[:cut]):
+                    cut -= 1
+                out.append(word[:cut])
+                word = word[cut:]
+            line = word
+        out.append(line)
+    return out
 
 
 def _prect(b: Box) -> pymupdf.Rect:

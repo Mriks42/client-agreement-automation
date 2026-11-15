@@ -2,14 +2,13 @@
 follow it (copy link, resend, correct an email, void). Side effects run in jobs."""
 
 import asyncio
-import re
 from typing import Annotated, Any
 
 from fastapi import APIRouter, HTTPException, Request, Response
 from pydantic import BaseModel, Field, StringConstraints
 
 from app.api.deps import TenantDep, UserDep
-from app.services import events, pdf_engine, signing
+from app.services import events, finalize, pdf_engine, signing, storage
 from app.services import files as svc
 from app.services.errors import Conflict, Invalid, NotFound
 from app.services.storage import BytesLRU
@@ -193,18 +192,48 @@ async def _pdf(request: Request, tenant: TenantDep, file_id: str) -> tuple[dict[
 @router.get("/{file_id}/preview.pdf")
 async def preview_pdf(file_id: str, request: Request, tenant: TenantDep) -> Response:
     f, pdf = await _pdf(request, tenant, file_id)
-    name = (
-        re.sub(r"[^A-Za-z0-9 ._-]", "", f"{f['template']['name']} - {f['title']}").strip()
-        or "agreement"
-    )
     return Response(
         pdf,
         media_type="application/pdf",
         headers={
-            "content-disposition": f'inline; filename="{name}.pdf"',
+            "content-disposition": f'inline; filename="{finalize.download_name(f, "")}"',
             "cache-control": "private, no-cache",
         },
     )
+
+
+async def signed_pdf_response(request: Request, f: dict[str, Any]) -> Response:
+    """The signed PDF with its certificate, exactly as stored (its SHA-256 is on record)."""
+    if not f.get("final_blob_id"):
+        raise HTTPException(status_code=409, detail="The signed PDF isn't ready yet.")
+    pdf = await storage.get(request.app.state.db.blobs, f["final_blob_id"])
+    return Response(
+        pdf,
+        media_type="application/pdf",
+        headers={
+            "content-disposition": f'attachment; filename="{finalize.download_name(f)}"',
+            "cache-control": "private, max-age=3600",
+        },
+    )
+
+
+@router.get("/{file_id}/signed.pdf")
+async def signed_pdf(file_id: str, request: Request, tenant: TenantDep) -> Response:
+    try:
+        f = await svc.get(tenant, file_id)
+    except NotFound as exc:
+        raise _errors(exc) from exc
+    return await signed_pdf_response(request, f)
+
+
+@router.post("/{file_id}/finalize")
+async def retry_finalize(file_id: str, user: UserDep, tenant: TenantDep) -> dict[str, Any]:
+    """Try again, after making the signed PDF failed."""
+    try:
+        f = await finalize.retry(tenant, events.by_user(user), file_id)
+    except (NotFound, Conflict) as exc:
+        raise _errors(exc) from exc
+    return await _detail(tenant, f)
 
 
 @router.get("/{file_id}/pages/{page}.png")
