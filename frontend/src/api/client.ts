@@ -47,6 +47,9 @@ function errorMessage(data: unknown, status: number): string {
     const detail = (data as { detail: unknown }).detail
     if (typeof detail === 'string') return detail
     if (Array.isArray(detail) && detail[0]?.msg) return String(detail[0].msg)
+    if (detail && typeof detail === 'object' && 'message' in detail) {
+      return String((detail as { message: unknown }).message)
+    }
   }
   if (status >= 500) return 'Something went wrong on our side. Please try again.'
   return `Request failed (${status})`
@@ -58,4 +61,12 @@ export const api = {
   patch: <T>(path: string, body?: Json) => request<T>('PATCH', path, body),
   put: <T>(path: string, body?: Json) => request<T>('PUT', path, body),
   delete: <T>(path: string) => request<T>('DELETE', path),
+}
+
+/** The list of problems a 422 from the template endpoints carries, if any. */
+export function errorProblems(error: unknown): string[] {
+  if (!(error instanceof ApiError)) return []
+  const body = error.body as { detail?: { problems?: unknown } } | null
+  const problems = body?.detail?.problems
+  return Array.isArray(problems) ? problems.map(String) : []
 }

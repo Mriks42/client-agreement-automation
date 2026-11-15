@@ -3,9 +3,14 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { createBrowserRouter, RouterProvider } from 'react-router'
 import { ApiError } from './api/client'
+import { AppShell } from './components/AppShell'
 import './index.css'
+import { LoginPage, SignupPage } from './pages/AuthPages'
 import { HomePage } from './pages/HomePage'
 import { NotFoundPage } from './pages/NotFoundPage'
+import { TemplatePage } from './pages/TemplatePage'
+import { TemplatesPage } from './pages/TemplatesPage'
+import { UploadPage } from './pages/UploadPage'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -19,6 +24,16 @@ const queryClient = new QueryClient({
 
 const router = createBrowserRouter([
   { path: '/', element: <HomePage /> },
+  { path: '/login', element: <LoginPage /> },
+  { path: '/signup', element: <SignupPage /> },
+  {
+    element: <AppShell />,
+    children: [
+      { path: '/templates', element: <TemplatesPage /> },
+      { path: '/templates/new', element: <UploadPage /> },
+      { path: '/templates/:id', element: <TemplatePage /> },
+    ],
+  },
   { path: '*', element: <NotFoundPage /> },
 ])
 
