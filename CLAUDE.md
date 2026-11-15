@@ -4,63 +4,61 @@ Context for anyone working in this repo, human or AI. `DECISIONS.md` explains *w
 
 ## Current status (update at the end of every work session)
 
-_Last updated: Sun Nov 15, 2026 (early morning), end of Day 2. Day 2 ran two days late (planned for Thu Nov 12)._
+_Last updated: Sun Nov 15, 2026 (morning), end of Day 3. Still two days behind the original plan; the schedule below absorbs it._
 
-**Next session: Day 3, templates.** This is the first half of the graded path: Anthony signs up, uploads the MIND agreement, reviews the proposed fields and approves them.
+**Next session: Day 4 (Mon), files and signing.** This is the second half of the graded path: Anthony opens a file from his approved agreement, previews it, sends it, and signs it from his inbox.
 - **Backend:**
-  1. **Auth (D14).** `orgs` and `users` collections; signup, login and logout; argon2 hashing (`argon2-cffi` is already a dependency); an httpOnly SameSite session cookie signed with `SESSION_SECRET`; a `require_user` dependency; repository helpers that require `org_id`; tests that cross-org access returns 404.
-  2. **Template upload.** `POST /api/templates` (multipart) runs `services/ingest.ingest`, stores the original and the normalized PDF in GridFS, creates the template with status `analyzing`, and enqueues an `analyze_template` job.
-  3. **The `analyze_template` job.** It calls `detection.pipeline.analyze`. It stores the returned `pdf`, which may include an appended signature page, along with the roles, fields, warnings and `detector`/`fallback_reason`, then sets status `needs_review`. On failure it sets `analysis_failed` and gives a next step (place fields manually, or upload a PDF). The job needs a lease of **at least 10 minutes**. The worker's `LEASE` is a global 5 minutes and the LLM budget is up to 330 s, so add a per-`JobType` lease to `worker/queue.py`.
-  4. **Other template endpoints.**
-     - `GET` the list.
-     - `GET /{id}` returns status, fields, roles and warnings.
-     - `GET /{id}/pages/{n}.png` uses `pdf_engine.render_page_png`.
-     - `PUT` saves edited fields and roles.
-     - `POST /{id}/approve` makes an atomic `needs_review → active` transition.
+  1. **Files.** `POST /api/files` from an `active` template. It snapshots the template's `version`, `pdf_blob_id`, `roles` and `fields` (with `redact`) into the file, so later template edits can't change it. It stores sender values keyed by `(filled_by, key)`; fields that share a key share one value. Recipients get one name and email per role. Status starts at `draft`. Use `repo.Tenant` (add nothing that bypasses it).
+  2. **Preview.** `GET /api/files/{id}/preview.pdf` stamps the sender values with `pdf_engine.stamp`, which is the exact PDF that goes out. Send is an atomic `draft → sent`.
+  3. **Recipients and routing.** One random 256-bit token per recipient, stored as a SHA-256 hash only. Only the current signer in `order` gets a link; when they sign, the next is enqueued. Signing emails go through `enqueue_email` (D11 transactional text plus HTML). The file page has **Copy signing link**, recorded as an event, and a check-spam hint after sending.
+  4. **Public signing API** (token auth, no session): view, consent (ESIGN), submit values plus the signature (typed, or drawn PNG), decline with a reason. Each step is an append-only event with IP, user agent and time.
+  5. **Reminders:** day 2 and day 5, using the worker's `every()` hook or due-time jobs. Expiry at 30 days.
 - **Frontend:**
-  - Signup and login pages, and a templates list.
-  - An upload page that polls while analysis runs and says it "usually takes 1–3 minutes".
-  - **The review editor:**
-    - page images with the fields overlaid, scaled from PDF points;
-    - click a field to edit its type, who fills it, its label and whether it's required;
-    - drag to move or resize, add, and delete fields;
-    - show the AI's warnings;
-    - an Approve button.
-- **Exit criterion:** on the live app, sign up, upload an agreement (for example `backend/samples/commonpaper-psa-cover.pdf`), see the proposed fields, edit one, and approve.
+  - New-file form generated from the template's sender fields (one input per shared key, typed by field type), plus a name and email per signer.
+  - A preview of the exact PDF, then Confirm and send.
+  - A file page with a timeline, Copy signing link, Resend to a corrected email, and Void.
+  - The signing page, mobile first: consent, then guided steps through that signer's fields, `signature_pad` or typed signature, dates filled in automatically, and decline.
+- **Exit criterion:** on the live app, open a file from an approved agreement, preview, send, receive the email (or copy the link), and sign as the client and then as the firm.
 
 **Cuts applied (Nov 15):** the "if time allows" items, the verify page, logo and colour branding, bounce detection, and the template-versioning UI. Don't build them. The API and webhooks stay in scope, scheduled last. See DECISIONS.md "If behind schedule".
 
-**Remaining schedule** (it replaces the original day plan after the slip):
-- **Sun:** Day 3, templates (above).
-- **Mon:** files and signing.
-  - The new-file form, built from the template's sender fields.
-  - A preview of the exact PDF to be sent, using `pdf_engine.stamp`, then Send.
-  - Recipients and signing tokens, sequential routing, emails plus the copy-link fallback (D11).
-  - The signing page: consent, guided fields, `signature_pad`, decline.
-  - Reminders.
+**Remaining schedule:**
+- **Mon:** Day 4, files and signing (above).
 - **Tue morning:** finalize. Stamp every value, add the audit certificate page and SHA-256 hashes, email the signed PDF to every party, and mark the file "Signed: ready to start work". Then polish, and the API and webhooks if there's time.
 - **Hard stops:** feature freeze Tue 12:00, final deploy verified by 17:00, last commit by 20:00 MST.
 
-**Day 2 is done.**
-- **Document pipeline** (library code; Day 3 puts it behind an endpoint and a job):
-  1. `services/ingest.py` checks magic bytes and size limits, and converts DOCX to PDF with LibreOffice.
-  2. `pdf_engine.normalize_pdf` bakes in page rotation and strips JavaScript and attachments.
-  3. `pdf_engine.extract` finds lines and candidate blanks with measured boxes.
-  4. `detection/pipeline.analyze` labels them with Claude, or with heuristics if Claude fails.
-  5. `detection/mapper` builds field rectangles and checks bounds and overlaps.
-  6. Any role with nowhere to sign gets an appended signature page.
-  7. `pdf_engine.stamp` writes values into the PDF: placeholders removed, values shrunk to fit, typed signatures, ticks. Finalization will reuse it.
-- **Preview tool:** `uv run python -m scripts.demo_sign samples/<file>` writes a review PDF and a fake-signed PDF to `backend/samples/out/`. `backend/samples/` is git-ignored apart from its README.
-- **Eval:** 11 synthetic fixtures.
-  - **Online (Claude, `claude-opus-5-5`, effort high): 81/81 blanks, signature blocks on 11/11, 0 false positives.**
-  - Offline (heuristics only), full set in the production image: 80/81 blanks (98.8%), signature blocks on 11/11.
-  - The fixtures are cleaner than real agreements. Treat these numbers as a regression floor.
-- **Blind tests on three unseen public agreements:** the Common Paper PSA cover page (6-page DOCX), a State Bar of California fee agreement (6-page PDF) and the Bonterms PSA cover page (1-page DOCX).
-  - Every signature block, signer and signing order was right on the first run.
-  - The misses were per-client blanks: `[XX]`, option boxes, long instruction placeholders, "Company:"-style label gaps, a blank after a tick box, and instructions that wrap to the next line. All are now fixed and pinned by tests.
-  - Still open, deliberately: letterhead words in capitals with no brackets ("LAW FIRM", "ADDRESS") aren't detected; the reviewer adds them by hand.
-- **Cost and latency scale with the number of blanks:** about 5¢ and 10 s for a 1-page agreement, about 21¢ and 31 s for a 6-page letter, and about 41¢ and **144 s** for a 156-blank template. The per-call timeout is 300 s.
-- **CI** runs the offline eval in two places: the backend job, which skips the DOCX fixture, and inside the Docker image, which runs the full set.
+**Day 3 is done, and verified on the live app.**
+- **Auth (D14):** `services/accounts.py`, `api/auth.py`, `api/deps.py` (`UserDep`, `TenantDep`).
+  - argon2id hashes, verified off the event loop.
+  - A session is a random token in an httpOnly, SameSite=Lax cookie (`Secure` in prod). The DB stores only an HMAC of it keyed with `SESSION_SECRET`, and logout deletes it.
+  - Failed logins are throttled per email (10 per 15 minutes, in-process). Cross-site state-changing `/api/` calls are refused by `Origin`.
+- **Tenant isolation:** `app/repo.py` `Tenant` adds `org_id` to every query, and `transition()` is the atomic conditional update. Cross-org access to every template endpoint returns 404 (tested).
+- **Templates:** `services/templates.py` and `api/templates.py`.
+  - Statuses: `analyzing → needs_review → active`, with `analysis_failed` offering **Try again** or **Place the fields myself**.
+  - `revision` goes up on every write, and saves and approvals must name it (409 on mismatch). `version` goes up when an approved template is edited; that edit needs approval again.
+  - Approval needs every signer to have a signature field.
+  - `redact` rectangles are server-owned, kept by field id across edits.
+  - Page PNGs are rendered on demand at 110 dpi, cached in-process (24 MB) and in the browser.
+- **Queue:** per-`JobType` lease (`analyze_template` holds 10 minutes, with 2 attempts); handlers are cancelled 30 s before their lease ends; and on shutdown the worker hands running jobs back, so a deploy doesn't strand an analysis.
+- **Frontend:**
+  - Signup, login, and an agreements list.
+  - Upload: PDF or DOCX, with progress and page previews while analyzing.
+  - The review editor: fields overlaid in percentages of the page's point size; click to edit; drag to move; corners to resize; click or drag to add; Delete, arrow-key nudges and undo; signers with order. It shows the AI notes and any fallback, warns about unsaved changes, and has Approve.
+- **Verified in headless Chrome** (puppeteer-core against the local Chrome, run from a scratch folder rather than the repo): sign up, upload, review, rename and drag a field, add a field, save, approve.
+  - **Live, with Claude:** a 2-page PDF took 16 s (13 fields, both signers in the right order). A DOCX took 10 s to convert during upload, then 13 s to analyze (9 fields).
+  - **Local, keyword rules only:** the 7-page Common Paper PSA gave 160 fields.
+  - Tests: 100 backend tests pass, plus ruff, mypy, typecheck, lint and build. CI is green.
+- **Known gaps, accepted:**
+  - The editor is desktop-first; it renders on a phone but isn't comfortable there.
+  - Templates can't be deleted or archived.
+  - The login throttle and page cache are per-process, which is fine on one instance.
+  - Test accounts named `e2e+<timestamp>@example.com` exist in the live DB.
+
+**Day 2 (document pipeline), for reference:**
+- The pipeline: `ingest` → `normalize_pdf` → `extract` → `detection/pipeline.analyze` (Claude, or heuristics on any failure) → `mapper` → an appended signature page if needed. `pdf_engine.stamp` writes values, and finalization reuses it. Preview any agreement with `uv run python -m scripts.demo_sign samples/<file>`.
+- **Eval (11 synthetic fixtures):** online 81/81 blanks, signature blocks 11/11, 0 false positives. Offline (heuristics only) 80/81. Treat these as a regression floor.
+- **Blind tests** (Common Paper PSA, a CalBar fee agreement, Bonterms PSA): signers and signing order were right every time. Still open: capitalised letterhead words with no brackets ("LAW FIRM") aren't detected.
+- **Cost and latency scale with blanks:** about 5¢ and 10 s for 1 page, about 21¢ and 31 s for a 6-page letter, and about 41¢ and 144 s for 156 blanks. The per-call timeout is 300 s.
 
 **Infrastructure (Day 1, unchanged):**
 - **Live app:** https://kickoff-r713.onrender.com
@@ -74,7 +72,7 @@ _Last updated: Sun Nov 15, 2026 (early morning), end of Day 2. Day 2 ran two day
 - **Secrets** live only in the Render dashboard and the owner's private notes. Never in the repo, and never in chat.
 
 **Later reminders:**
-- **Anthropic API key** `kickoff`: Individual org, Default workspace, prepaid with auto-reload off. It expires **Feb 28, 2027**. The balance was about $2.60 on Nov 15. Check it before submitting, and keep at least $2: at $0, detection silently falls back to heuristics. The key is in Render and in `backend/.env` (gitignored).
+- **Anthropic API key** `kickoff`: Individual org, Default workspace, prepaid with auto-reload off. It expires **Feb 28, 2027**. The balance was about $2.60 on Nov 15, before two live Day 3 runs of about 5¢ each. Check it before submitting, and keep at least $2: at $0, detection silently falls back to heuristics. The key is in Render and in `backend/.env` (gitignored).
 - The workspace's 750 free Render hours are shared with two other services; suspend those if grading runs into December.
 - Optional, before submitting: rotate the Atlas DB user's password, and update `MONGODB_URI` in Render to match.
 
@@ -133,9 +131,13 @@ backend/
     main.py              FastAPI app; lifespan starts the job worker; serves frontend/dist
     config.py            Settings (env vars below)
     db.py                Mongo client, indexes, GridFS buckets
+    repo.py              Tenant: the only way to query tenant collections (adds org_id; atomic transition())
     api/                 Routers: auth, templates, files, signing (public, token-auth), v1 (API-key auth), verify, health
     domain/              Pydantic models + state enums (fields.py: Field, Role, Rect)
     services/
+      accounts.py        Orgs, users, argon2 passwords, HMAC-keyed sessions, login throttle
+      storage.py         GridFS put/get/delete (the storage interface) and a small bytes LRU
+      templates.py       Template lifecycle: upload, analyze job, validation, save, approve
       ingest.py          Upload validation, DOCX→PDF
       pdf_engine.py      Extract lines/slots, render PNGs, stamp fields, append pages (the only PyMuPDF import)
       detection/         schema.py, prompt.py, llm.py, heuristics.py, mapper.py, pipeline.py (analyze: the entry point)
