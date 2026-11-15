@@ -6,7 +6,7 @@ import type { Mark, SignField, SignView } from '../api/types'
 import { SignatureDialog } from '../components/signing/SignatureDialog'
 import { Alert, Button, Dialog, FullPageSpinner, Spinner, TextArea } from '../components/ui'
 import { PRODUCT_NAME } from '../lib/product'
-import { INK, TYPED_STYLE } from '../lib/signing'
+import { INK, signerHint, signerLabel, TYPED_STYLE } from '../lib/signing'
 
 /** /sign/:token — the signer's page. No account: the link is their credential. */
 export function SignPage() {
@@ -215,8 +215,11 @@ function Signing({ v, token }: { v: SignView; token: string }) {
   const submit = useSubmitSignature(token)
   // Reading order, so "Next" walks the document from top to bottom.
   const fields = useMemo(
-    () => [...v.fields].sort((a, b) => a.page - b.page || a.rect.y0 - b.rect.y0 || a.rect.x0 - b.rect.x0),
-    [v.fields],
+    () =>
+      [...v.fields]
+        .sort((a, b) => a.page - b.page || a.rect.y0 - b.rect.y0 || a.rect.x0 - b.rect.x0)
+        .map((f) => ({ ...f, label: signerLabel(f.label, v.signer.role_label) })),
+    [v.fields, v.signer.role_label],
   )
   const [values, setValues] = useState<Values>(() => {
     const init: Values = {}
@@ -592,6 +595,7 @@ function ValueDialog({
             />
           </div>
         )}
+        {signerHint(field.label) && <p className="mt-1.5 text-sm text-slate-500">{signerHint(field.label)}</p>}
         {!field.required && <p className="mt-1 text-xs text-slate-500">Optional.</p>}
         <div className="mt-4 flex justify-end gap-2">
           <Button variant="ghost" onClick={onClose}>
