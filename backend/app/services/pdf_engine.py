@@ -226,6 +226,9 @@ _NOT_PLACEHOLDER_RE = re.compile(
     r"|^\[\s*(?i:drafting note|note to drafter|note to draft|note)\b"
 )
 _OPTION_BOX_RE = re.compile(r"[\[(]\s?[xX✓✔]?\s?[\])]")
+# A tick box in front of a label ("☐ Email:"): ignored when deciding whether a label is followed
+# by a blank, so the box and the blank after the label are both slots.
+_BOX_PREFIX_RE = re.compile(r"^(?:[☐□❑❒▢☑☒]|\[\s?[xX✓✔]?\s?\]|\(\s?[X✓✔]?\s?\))\s*")
 _CHECKBOX_CHARS = frozenset("☐□❑❒▢☑☒")
 _LABEL_RE = re.compile(
     r"(?:[A-Za-z'\u2019]+\s){0,3}"
@@ -552,7 +555,7 @@ def _label_gaps(lines: list[_RawLine], drafts: list[_Draft], page_width: float) 
         chunks = _chunks(line)
         row = [ln for ln in lines if ln is not line and _same_row(ln.bbox, line.bbox)]
         for i, (text, _x0, x1) in enumerate(chunks):
-            if not _LABEL_RE.fullmatch(text.strip()):
+            if not _LABEL_RE.fullmatch(_BOX_PREFIX_RE.sub("", text.strip())):
                 continue
             nxt = chunks[i + 1][1] if i + 1 < len(chunks) else None
             right = [ln.bbox.x0 for ln in row if ln.bbox.x0 > x1]

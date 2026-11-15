@@ -25,7 +25,8 @@ _Last updated: Sun Nov 15, 2026 (early morning), end of Day 2. Day 2 was planned
   - A State Bar of California sample law-firm fee agreement (6-page PDF): every blank found. Its unusual signature page (signature line above a "CLIENT" caption, "DATED:" lines in the opposite column, firm signs "By:") came out entirely right. 31 s, about 21¢.
   - The Bonterms PSA cover page (1-page DOCX): both signature blocks right. It missed "Company:", "Email:" and "Postal mail:" blanks that have only empty space after the label. 16 s, about 8¢.
   - Fixes since: the label-gap rule now also knows party-detail labels (company, email, address, phone), so Company is detected. An instruction bracket next to a blank (`$____ [PROVIDE AMOUNT]`) is removed when the blank is filled.
-  - Still open: a blank right after a checkbox glyph ("☐ Email:"), an instruction bracket that wraps onto the next line, and letterhead words in capitals with no brackets ("LAW FIRM", "ADDRESS"). The reviewer adds these by hand.
+  - Also fixed: a blank right after a tick box ("☐ Email: ___") now gets an address field as well as the box, and an instruction that wraps onto the next line after its blank is removed too.
+  - Still open: letterhead words in capitals with no brackets ("LAW FIRM", "ADDRESS") aren't detected. That's deliberate, because treating capitalised words as blanks would make every heading a field. The reviewer adds these by hand.
 - **Cost and latency scale with the number of blanks:** about 5¢ and 10 s for a 1-page agreement, but about 41¢ and **144 s** for that 156-blank template. Time per call is roughly 1 s per blank, so the per-call timeout is now 300 s.
   - The fixtures are cleaner than real agreements. Treat these numbers as a regression floor, not as proof of quality on the MIND agreement.
 - **CI** runs the offline eval in two places: the backend job, which skips the DOCX fixture, and inside the Docker image, which runs the full set.

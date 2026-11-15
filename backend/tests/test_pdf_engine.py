@@ -304,3 +304,17 @@ def test_party_detail_labels_with_empty_space_are_blanks() -> None:
         ("label_gap", "Company:"),
         ("label_gap", "Email:"),
     ]
+
+
+def test_tick_box_in_front_of_a_label_keeps_the_blank_after_it() -> None:
+    def draw(page: pymupdf.Page) -> None:
+        page.insert_text((72, 100), "[ ] Email:")
+        page.insert_text((72, 120), "[ ] Postal mail:")
+
+    slots = slots_of(make_pdf(draw))
+    assert [(s.kind, s.anchor) for s in slots] == [
+        ("checkbox", "Email:"),
+        ("label_gap", "Email:"),
+        ("checkbox", "Postal mail:"),
+        ("label_gap", "Postal mail:"),
+    ]

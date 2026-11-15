@@ -155,21 +155,51 @@ def _rect(slot: Slot, ftype: FieldType, page: PageText) -> tuple[Rect, list[Rect
 
 def _remove_instructions(fields: list[Field], labels: Labels, slots: dict[str, Slot]) -> None:
     """A bracketed instruction right next to a blank ("$____ [PROVIDE AMOUNT]") is not a field
-    itself, but it must not survive into the signed copy: remove it with the blank's value."""
+    itself, but it must not survive into the signed copy: remove it with the blank's value.
+    "Next to" means on the same line, or else the blank ends one line and the instruction starts
+    the next one."""
     by_slot = {f.slot_id: f for f in fields if f.slot_id}
+    blanks = [(slots[sid], f) for sid, f in by_slot.items() if slots[sid].kind != "placeholder"]
+
+    def alone_on_row(s: Slot, side: str) -> bool:
+        """Nothing (text or slot) after `s` on its line (side='right') or before it ('left')."""
+        text = s.after if side == "right" else s.before
+        if text.strip():
+            return False
+        return not any(
+            o.page == s.page
+            and o is not s
+            and abs(o.baseline - s.baseline) <= 3
+            and (o.bbox.x0 >= s.bbox.x1 if side == "right" else o.bbox.x1 <= s.bbox.x0)
+            for o in slots.values()
+        )
+
     for lab in labels.slots:
-        slot = slots[lab.slot_id]
-        if lab.type != "not_a_field" or slot.kind != "placeholder":
+        note = slots[lab.slot_id]
+        if lab.type != "not_a_field" or note.kind != "placeholder":
             continue
-        for other_id, f in by_slot.items():
-            other = slots[other_id]
-            if other.page != slot.page or other.kind == "placeholder":
-                continue
-            same_row = abs(other.baseline - slot.baseline) <= 3
-            gap = max(other.bbox.x0 - slot.bbox.x1, slot.bbox.x0 - other.bbox.x1)
-            if same_row and gap <= 40:
-                f.redact = [*f.redact, *(_to_rect(r) for r in slot.redact)]
-                break
+        same_page = [(b, f) for b, f in blanks if b.page == note.page]
+        target = next(
+            (
+                f
+                for b, f in same_page
+                if abs(b.baseline - note.baseline) <= 3
+                and max(b.bbox.x0 - note.bbox.x1, note.bbox.x0 - b.bbox.x1) <= 40
+            ),
+            None,
+        )
+        if target is None and alone_on_row(note, "left"):
+            target = next(
+                (
+                    f
+                    for b, f in same_page
+                    if 3 < note.baseline - b.baseline <= 2 * max(b.bbox.height, 10)
+                    and alone_on_row(b, "right")
+                ),
+                None,
+            )
+        if target is not None:
+            target.redact = [*target.redact, *(_to_rect(r) for r in note.redact)]
 
 
 def _clip(r: Rect, page: PageText) -> Rect:
