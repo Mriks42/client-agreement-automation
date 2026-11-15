@@ -146,6 +146,18 @@ async def _enqueue_analysis(tenant: Tenant, template_id: ObjectId, attempt: int)
 
 
 # ---- analysis job ------------------------------------------------------------------------------
+_SLOT_REF = re.compile(r"(?:\bslots?\s+)?\bp(\d+)-s\d+\b", re.IGNORECASE)
+_LINE_REF = re.compile(r"(?:\blines?\s+)?\bp(\d+)-l\d+\b", re.IGNORECASE)
+
+
+def readable_note(text: str) -> str:
+    """The model sometimes cites our internal ids ("p1-s4") in its notes to the reviewer.
+    Say where on the page instead."""
+    text = _SLOT_REF.sub(lambda m: f"a blank on page {m.group(1)}", text)
+    text = _LINE_REF.sub(lambda m: f"a line on page {m.group(1)}", text)
+    return text[:1].upper() + text[1:]
+
+
 async def run_analysis(
     db: AsyncDatabase,
     bucket: AsyncGridFSBucket,
@@ -204,7 +216,9 @@ async def run_analysis(
                 "roles": [r.model_dump() for r in analysis.roles],
                 "fields": [f.model_dump() for f in analysis.fields],
                 # The editor explains a fallback itself, with the reason.
-                "warnings": [w for w in analysis.warnings if w != heuristics.FALLBACK_WARNING],
+                "warnings": [
+                    readable_note(w) for w in analysis.warnings if w != heuristics.FALLBACK_WARNING
+                ],
                 "detection": detection,
                 "analysis_error": None,
                 "updated_at": finished,

@@ -290,3 +290,14 @@ async def test_other_companies_cannot_see_or_touch_a_template(
     # And the owner still can.
     assert (await client.get(f"/api/templates/{tid}")).status_code == 200
     assert (await client.get("/api/templates/not-an-id")).status_code == 404
+
+
+def test_notes_never_show_internal_ids() -> None:
+    assert (
+        svc.readable_note("p1-s4 was treated as a decorative separator line.")
+        == "A blank on page 1 was treated as a decorative separator line."
+    )
+    assert svc.readable_note("Slots p2-s10 and p2-s11 look optional; see p3-l7.") == (
+        "A blank on page 2 and a blank on page 2 look optional; see a line on page 3."
+    )
+    assert svc.readable_note("Check the fee clause.") == "Check the fee clause."
