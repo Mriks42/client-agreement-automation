@@ -21,7 +21,7 @@ export function HomePage() {
     refetchInterval: 30_000,
   })
 
-  if (me.data) return <Navigate to="/templates" replace />
+  if (me.data) return <Navigate to="/files" replace />
 
   return (
     <main className="mx-auto flex min-h-full max-w-3xl flex-col justify-center px-4 py-16">

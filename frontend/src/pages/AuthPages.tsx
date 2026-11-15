@@ -6,7 +6,7 @@ import { PRODUCT_NAME } from '../lib/product'
 
 function safeNext(raw: string | null): string {
   // Only same-site paths, so a crafted link can't bounce someone to another site after login.
-  return raw && raw.startsWith('/') && !raw.startsWith('//') ? raw : '/templates'
+  return raw && raw.startsWith('/') && !raw.startsWith('//') ? raw : '/files'
 }
 
 function AuthCard({ title, children, footer }: { title: string; children: ReactNode; footer: ReactNode }) {
@@ -71,7 +71,7 @@ export function SignupPage() {
 
   if (me.isPending) return <FullPageSpinner />
   // One redirect, decided here: a new account goes straight to uploading its agreement.
-  if (me.data) return <Navigate to={signup.isIdle ? '/templates' : '/templates/new'} replace />
+  if (me.data) return <Navigate to={signup.isIdle ? '/files' : '/templates/new'} replace />
 
   const submit = (e: FormEvent) => {
     e.preventDefault()

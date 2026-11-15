@@ -1,6 +1,17 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, ApiError } from './client'
-import type { Field, Me, Role, Template, TemplateSummary } from './types'
+import type {
+  Field,
+  FileDetail,
+  FileInput,
+  FileSummary,
+  Mark,
+  Me,
+  Role,
+  SignView,
+  Template,
+  TemplateSummary,
+} from './types'
 
 // ---- session --------------------------------------------------------------------------------
 export function useMe() {
@@ -104,4 +115,130 @@ export function useRetryAnalysis(id: string) {
 
 export function usePlaceManually(id: string) {
   return useTemplateMutation(() => api.post<Template>(`/api/templates/${id}/manual`))
+}
+
+// ---- files ----------------------------------------------------------------------------------
+const LIVE: ReadonlySet<string> = new Set(['sent', 'partially_signed'])
+
+export function useFiles() {
+  return useQuery({
+    queryKey: ['files'],
+    queryFn: () => api.get<FileSummary[]>('/api/files'),
+    refetchInterval: (q) => (q.state.data?.some((f) => LIVE.has(f.status)) ? 15_000 : false),
+  })
+}
+
+export function useFile(id: string) {
+  return useQuery({
+    queryKey: ['file', id],
+    queryFn: () => api.get<FileDetail>(`/api/files/${id}`),
+    // While it's out for signature, keep the timeline current.
+    refetchInterval: (q) => (q.state.data && LIVE.has(q.state.data.status) ? 5000 : false),
+  })
+}
+
+function useFileMutation<V>(fn: (vars: V) => Promise<FileDetail>) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: fn,
+    onSuccess: (f) => {
+      qc.setQueryData(['file', f.id], f)
+      void qc.invalidateQueries({ queryKey: ['files'] })
+    },
+  })
+}
+
+export function useCreateFile() {
+  return useFileMutation((vars: FileInput & { template_id: string }) =>
+    api.post<FileDetail>('/api/files', vars),
+  )
+}
+
+export function useEditFile(id: string) {
+  return useFileMutation((vars: FileInput & { revision: number }) =>
+    api.put<FileDetail>(`/api/files/${id}`, vars),
+  )
+}
+
+export function useSendFile(id: string) {
+  return useFileMutation((vars: { revision: number }) =>
+    api.post<FileDetail>(`/api/files/${id}/send`, vars),
+  )
+}
+
+export function useVoidFile(id: string) {
+  return useFileMutation((vars: { reason: string }) =>
+    api.post<FileDetail>(`/api/files/${id}/void`, vars),
+  )
+}
+
+export function useEditRecipient(id: string) {
+  return useFileMutation(
+    (vars: { recipientId: string; name?: string; email?: string; resend?: boolean }) => {
+      const { recipientId, ...body } = vars
+      return api.patch<FileDetail>(`/api/files/${id}/recipients/${recipientId}`, body)
+    },
+  )
+}
+
+export function useCopyLink(id: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (recipientId: string) =>
+      api.post<{ url: string }>(`/api/files/${id}/recipients/${recipientId}/link`),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ['file', id] }),
+  })
+}
+
+export function useDeleteFile(id: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: () => api.delete<null>(`/api/files/${id}`),
+    onSuccess: () => {
+      qc.removeQueries({ queryKey: ['file', id] })
+      void qc.invalidateQueries({ queryKey: ['files'] })
+    },
+  })
+}
+
+// ---- signing (public, token in the path) ----------------------------------------------------
+export function useSignView(token: string) {
+  return useQuery({
+    queryKey: ['sign', token],
+    queryFn: () => api.get<SignView>(`/api/sign/${token}`),
+    staleTime: 60_000,
+    refetchOnWindowFocus: false,
+  })
+}
+
+function useSignMutation<V>(token: string, fn: (vars: V) => Promise<SignView | null>) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: fn,
+    onSuccess: (view) => {
+      if (view) qc.setQueryData(['sign', token], view)
+      else void qc.invalidateQueries({ queryKey: ['sign', token] })
+    },
+  })
+}
+
+export function useConsent(token: string) {
+  return useSignMutation(token, async () => {
+    await api.post<null>(`/api/sign/${token}/consent`)
+    return null
+  })
+}
+
+export function useSubmitSignature(token: string) {
+  return useSignMutation(
+    token,
+    (vars: { values: Record<string, string | boolean>; signature: Mark | null; initials: Mark | null; tz: string }) =>
+      api.post<SignView>(`/api/sign/${token}/submit`, vars),
+  )
+}
+
+export function useDecline(token: string) {
+  return useSignMutation(token, (vars: { reason: string }) =>
+    api.post<SignView>(`/api/sign/${token}/decline`, vars),
+  )
 }

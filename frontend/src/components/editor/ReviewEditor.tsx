@@ -229,13 +229,19 @@ export function ReviewEditor({ template }: { template: Template }) {
         <div className="min-w-0 space-y-3">
           {justApproved && (
             <Alert tone="success" title="Approved">
-              This agreement is ready. Every new file will use these fields.
+              This agreement is ready. Every new file will use these fields.{' '}
+              <Link to={`/files/new?template=${template.id}`} className="font-medium underline">
+                Open a file with it
+              </Link>
             </Alert>
           )}
           {isActive && !justApproved && (
             <Alert tone="success" title={`Approved ${formatDate(template.approved_at)}`}>
               Changes you save become version {template.version + 1}, which needs approval again.
-              Files already sent keep the version they were sent with.
+              Files already sent keep the version they were sent with.{' '}
+              <Link to={`/files/new?template=${template.id}`} className="font-medium underline">
+                Open a file with it
+              </Link>
             </Alert>
           )}
           {error && (

@@ -30,10 +30,13 @@ export function AppShell() {
     <div className="flex min-h-full flex-col">
       <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/95 backdrop-blur">
         <div className="mx-auto flex h-14 max-w-7xl items-center gap-4 px-4">
-          <Link to="/templates" className="text-sm font-semibold uppercase tracking-wide text-brand">
+          <Link to="/files" className="text-sm font-semibold uppercase tracking-wide text-brand">
             {PRODUCT_NAME}
           </Link>
           <nav className="flex items-center gap-1">
+            <NavLink to="/files" className={navCls}>
+              Files
+            </NavLink>
             <NavLink to="/templates" className={navCls}>
               Agreements
             </NavLink>

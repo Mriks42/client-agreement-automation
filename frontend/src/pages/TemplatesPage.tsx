@@ -56,6 +56,13 @@ export function TemplatesPage() {
                 </span>
                 <span className="w-32 text-right text-sm text-slate-400">{formatDate(t.updated_at)}</span>
               </Link>
+              {t.status === 'active' && (
+                <div className="-mt-1 px-4 pb-3">
+                  <Link to={`/files/new?template=${t.id}`} className="text-sm font-medium text-brand hover:underline">
+                    New file with this agreement →
+                  </Link>
+                </div>
+              )}
             </li>
           ))}
         </ul>
