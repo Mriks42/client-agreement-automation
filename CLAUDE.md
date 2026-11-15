@@ -4,22 +4,30 @@ Context for anyone working in this repo, human or AI. `DECISIONS.md` explains *w
 
 ## Current status (update at the end of every work session)
 
-_Last updated: Sun Nov 15, 2026 (afternoon), end of Day 4. Day 4 finished a day ahead of the revised schedule, so finalize moves up to Monday._
+_Last updated: Sun Nov 15, 2026 (evening), end of Day 5. Day 5 also finished a day early, so the whole graded path is live with two days to spare._
 
-**Next session: Day 5 (Mon Nov 16), finalize.** This is the last piece of the graded path: the signed PDF with its certificate, sent to everyone.
-- **`finalize_file` job.** `signing.submit` already enqueues it when the last signer signs (dedupe key `finalize_file:<file id>`). No handler is registered yet, so those jobs sit `pending` and run as soon as one is. Write it in `services/finalize.py` and register it in `worker/handlers.py`:
-  1. Stamp every value: `signing.current_pdf` already does this (prepared PDF plus each signer's values, drawn marks loaded by `mark_images`).
-  2. Append an audit certificate page (a new `pdf_engine` function). It shows the file id; the agreement name and version; the SHA-256 of the template PDF and of the prepared PDF (`file.prepared.sha256`); for each signer, their name, email, role, viewed, consented and signed times, IP, user agent and signature method (typed or drawn); and how to verify (compare SHA-256).
-  3. Store the result as a blob. Set `final_blob_id`, `final_sha256` and `finalized_at` in one conditional update (`finalized_at: None`), so a rerun skips straight to the emails.
-  4. Email the signed PDF to every signer and to the sender with `enqueue_email` (attachment by blob id, one dedupe key per address). Record a `finalized` event.
-  5. UI: **Download signed agreement** on the file page and on the signer's "completed" page (by token). The banner already switches on `finalized_at`. If the job dies, show it on the file page with a **Try again** button (re-enqueue it).
-- **Exit criterion:** on the live app, a fully signed file produces the signed PDF with a certificate page, every party receives it by email, and the file page downloads it.
-- **Heads-up for deploying it:** the live DB already holds completed files whose `finalize_file` jobs are waiting. They run as soon as the handler deploys, and that's the first real test. One was signed end to end by the owner on Nov 15, with real emails (client at an outside Gmail, firm at the sending inbox), so both should receive the signed PDF. The files from the automated live runs were sent by `e2e+…@example.com` accounts, so their copies to the sender will bounce into the sending inbox ("Address not found"). That's expected.
-- **Credit:** the Anthropic balance is about $2.05, at the $2 floor, and the owner will top up $5 later. Day 5 itself needs no credit (no LLM calls), so verify it by reusing an already-approved agreement on the live app. Don't upload new agreements live until the top-up is confirmed.
-- **Then, Monday evening: the blind-test round** (plan below). Start it only after the top-up.
+**Next session: the blind-test round (plan below).** Start it as soon as the owner confirms the $5 top-up; it no longer has to wait for Monday evening. Then the API and webhooks, which now have Monday instead of a squeezed Tuesday morning.
+- **First, the owner's inbox check (pending when this was written).** The signed copies went out at about 12:11 UTC (5:11 AM MST) on Nov 15. Look for "Signed: your copy of two party services with Acme Test Co" with a 4-page PDF attached (2 pages of agreement, 2 of certificate): in the owner's outside Gmail (the client on the Nov 15 file) and in the sending inbox (the firm's copies, to `+firm…` plus-addresses). Three "Address not found" bounces in the sending inbox are expected: those are the sender's copies to `e2e+…@example.com`. Record whether the Gmail copy landed in the Inbox or in spam.
+- **Credit:** about $2.05, at the floor. Day 5 used none. Don't upload new agreements live until the top-up is confirmed.
 
-**Blind-test round (Mon evening, about 2.5 h and $2–3 of credit).** The grade is one live run on an agreement we've never seen, so measure the whole path on six more unseen agreements, judged on the first run, and fix only what would break Anthony's path.
-- **Before starting:** the owner tops up $5 (balance then about $7). Day 5 should be live, so every run ends in a signed PDF with its certificate.
+**Day 5 (finalize) is done, and verified on the live app.**
+- **The job** (`services/finalize.py`, registered in `worker/handlers.py`; 5 attempts, a 10-minute lease):
+  1. Stamps every value on the prepared PDF (`signing.stamp_signed`, the uncached half of `current_pdf`).
+  2. `pdf_engine.finalize_pdf` bakes leftover form fields into the page (nothing left to fill in) and appends the certificate. It has the document details; SHA-256 of the upload, of the approved agreement and of the PDF as sent; per signer the email, role, link, viewed, consented (with disclosure version), signed, signature method, IP and user agent; the audit trail; and how to check a copy (`shasum -a 256` or `certutil`). Times are in UTC. Long sections flow onto more pages, and a signer's block never splits.
+  3. One conditional update (`finalized_at: None`) stores `final_blob_id`, `final_sha256` and `finalized_at`. A losing or repeated run deletes its own blob and keeps the first.
+  4. Emails go to every signer (from the firm, Reply-To the sender) and to the sender (with a file link). One job per address, deduplicated, and a signer who is also the sender gets one email. Then a `finalized` event.
+- **The certificate can't hold its own hash.** `final_sha256` is shown on the file page and printed in every delivery email, and the certificate says so.
+- **Failures have a way out.** A dead job sets `finalize_error`: the file page shows it with **Try again** (`POST /api/files/{id}/finalize` resets the same job). A signed copy that can't be emailed records `email_failed` (reason `signed_copy`) on the file, and the page lists it with the download as the next step. `on_email_dead` does this for any queued email whose payload has `ref` and `org_id`.
+- **Downloads:** `GET /api/files/{id}/signed.pdf` (session, tenant-scoped) and `GET /api/sign/{token}/signed.pdf` (signer state `completed`). The signer's view has `signed_pdf_ready`. Both pages poll until the PDF exists (the signer's page for about 3 minutes at most).
+- **Fixed along the way:** the built-in PDF fonts only cover Latin-1, so a phone's curly apostrophe (O’Brien) was stamped as "O·Brien". `pdf_engine.latin1()` now writes plain forms for stamps and the certificate. Other scripts still show as "?" (DECISIONS.md, Known limitations).
+- **Verified:**
+  - Tests: 120 backend tests pass (8 new: the whole flow, rerun idempotency, two racing runs, Try again, failed signed-copy emails, cross-org 404, certificate pagination, Latin-1). Also ruff, mypy, typecheck, lint and build. CI is green.
+  - **Local, headless Chrome:** both parties signed (client on an iPhone 13 viewport), the signer's page and the file page offered **Download signed agreement**, and both downloads matched the SHA-256 shown on the page.
+  - **Live:** the two completed files that were waiting were finalized within seconds of the deploy. That includes the file the owner signed end to end on Nov 15, whose certificate shows both real drawn signatures, IPs and browsers. A new file on the approved agreement had its signed PDF 2–5 s after the last signature, the signer's download by link was the same file, the file page in a browser showed the download with a matching hash, and Gmail accepted every email (0 dead jobs).
+- **Free live smoke test, for Tuesday's final deploy:** `LIVE_CHECK_PASSWORD=<the test-suite password> uv run python -m scripts.live_check --base https://kickoff-r713.onrender.com --email e2e+1794741626993@example.com`. That account holds the approved "two party services" agreement and the completed live files. It runs a whole file on the approved agreement with no upload (so no Claude call) and checks the signed PDF. Add `--inspect-only` to just check the completed files.
+
+**Blind-test round (next, about 2.5 h and $2–3 of credit).** The grade is one live run on an agreement we've never seen, so measure the whole path on six more unseen agreements, judged on the first run, and fix only what would break Anthony's path.
+- **Before starting:** the owner tops up $5 (balance then about $7). Day 5 is live, so every run ends in a signed PDF with its certificate: open it and check the certificate too.
 - **The set.** Public templates only. Download them into `backend/samples/` (git-ignored); none has been seen before.
   1. Accounting engagement letter, Word: Journal of Accountancy's sample 1040 letter (`.doc`, with bracketed placeholders). Upload the `.doc` first to check the refusal and its next step, then save it as `.docx` and upload that. https://www.journalofaccountancy.com/wp-content/uploads/sites/3/2014/01/1040-engagement-letter-sample.doc
   2. Accounting engagement letter, PDF: the CPAi (AICPA insurance program) individual tax letter. This is a different signing style, where the firm may be the only signer. https://forms.cpai.com/pdfs/TAX_Individual_2016_FINAL.pdf
@@ -38,8 +46,8 @@ _Last updated: Sun Nov 15, 2026 (afternoon), end of Day 4. Day 4 finished a day 
 **Cuts applied (Nov 15):** the "if time allows" items, the verify page, logo and colour branding, bounce detection, and the template-versioning UI. Don't build them. The API and webhooks stay in scope, scheduled last. See DECISIONS.md "If behind schedule".
 
 **Remaining schedule:**
-- **Mon:** Day 5, finalize (above), then the blind-test round in the evening.
-- **Tue morning:** fix blind-test blockers, then the API and webhooks if there's time, then polish.
+- **Mon:** the blind-test round (once the top-up is confirmed) and its blocker fixes, then the API and webhooks.
+- **Tue morning:** remaining blind-test fixes and polish. Run `scripts.live_check` after the final deploy.
 - **Hard stops:** feature freeze Tue 12:00, final deploy verified by 17:00, last commit by 20:00 MST.
 
 **Day 4 is done, and verified on the live app.**
@@ -70,7 +78,6 @@ _Last updated: Sun Nov 15, 2026 (afternoon), end of Day 4. Day 4 finished a day 
   - **Live, with Claude** (2-page fixture, 13 s analysis): sign up, approve, new file, preview, send, Copy signing link, client signs, firm countersigns from its copied link, "Signed: ready to start work". Both signing emails, sent to plus-addresses of the sending inbox, landed in its Primary tab. Then the owner sent a file to an outside personal Gmail account: it landed in the **Inbox, not spam**. It showed as from "Acme Test Co", with Reply-To the firm user, passed Gmail's sender checks (mailed-by and signed-by gmail.com), and the file page switched to "Emailed to …" on its own. **Not yet checked: Outlook or Microsoft 365 inboxes.** Copy signing link and the check-spam hint cover those.
   - Tests: 112 backend tests pass (cross-org 404 on every file endpoint, stale revisions, token storage, decline, void, reminders, expiry, a failed email), plus ruff, mypy, typecheck, lint and build. CI is green.
 - **Known gaps, accepted:**
-  - Finalize isn't built yet (Day 5).
   - Void doesn't email the current signer; their link says the agreement was withdrawn.
   - If the process dies in the instant between a signature's update and queueing the next signer's emails, that signer gets nothing until the sender uses Resend or Copy link.
   - A delivered-but-lost email isn't detected (bounce detection was cut). Copy link and Resend cover it.
@@ -101,7 +108,7 @@ _Last updated: Sun Nov 15, 2026 (afternoon), end of Day 4. Day 4 finished a day 
 - **Secrets** live only in the Render dashboard and the owner's private notes. Never in the repo, and never in chat.
 
 **Later reminders:**
-- **Anthropic API key** `kickoff`: Individual org, Default workspace, prepaid with auto-reload off. It expires **Feb 28, 2027**. The balance was about $2.60 on Nov 15, before three live Day 3 runs (about 5¢, 5¢ and 41¢) and the Day 4 live run (about 5¢), so it's now about **$2.05, just above the $2 floor**. The owner will add $5 before the blind-test round. Check it before submitting, and keep at least $2: at $0, detection silently falls back to heuristics. The key is in Render and in `backend/.env` (gitignored).
+- **Anthropic API key** `kickoff`: Individual org, Default workspace, prepaid with auto-reload off. It expires **Feb 28, 2027**. The balance was about $2.60 on Nov 15, before three live Day 3 runs (about 5¢, 5¢ and 41¢) and the Day 4 live run (about 5¢), so it's now about **$2.05, just above the $2 floor** (Day 5 used none). The owner will add $5 before the blind-test round. Check it before submitting, and keep at least $2: at $0, detection silently falls back to heuristics. The key is in Render and in `backend/.env` (gitignored).
 - The workspace's 750 free Render hours are shared with two other services; suspend those if grading runs into December.
 - Optional, before submitting: rotate the Atlas DB user's password, and update `MONGODB_URI` in Render to match.
 
@@ -174,13 +181,13 @@ backend/
       signing.py         File/recipient state machine, routing, tokens, the signer's steps, signing email/expiry jobs
       events.py          Append-only audit events
       errors.py          NotFound / Conflict / Invalid, mapped to 404 / 409 / 422 by the routers
-      finalize.py        Flatten values, audit certificate, SHA-256 (Day 5)
+      finalize.py        The finalize_file job: signed PDF, audit certificate, SHA-256, everyone's copy
       email/             EmailSender protocol, gmail_api.py, console.py, messages.py (email text), outbox.py (enqueue_email)
       webhooks.py        Outbound webhooks (HMAC-SHA256)
     worker/              queue.py (claim/backoff/dead-letter, due-time jobs), handlers.py (the job registry)
   tests/
   evals/                 fixtures/ (synthetic agreements), expected/ (labels), make_fixtures.py, run.py
-  scripts/               gmail_auth.py (mints the Gmail refresh token), demo_sign.py (preview detection + a fake-signed PDF), seed_demo.py
+  scripts/               gmail_auth.py (mints the Gmail refresh token), demo_sign.py (preview detection + a fake-signed PDF), live_check.py (free end-to-end check of a deployed app), seed_demo.py
   samples/               drop agreements here for demo_sign; git-ignored except the README
 frontend/
   src/                   pages/, components/, api/ (typed client), lib/
@@ -213,6 +220,10 @@ docker build -t agreement-app .. && docker run --rm -e APP_ENV=test agreement-ap
 # Preview on any agreement: writes samples/out/<name>-review.pdf (proposed fields) and -signed.pdf
 # (filled with fake data, typed signatures). Online mode costs about 5–40¢ per document.
 uv run python -m scripts.demo_sign samples/<file>.pdf [--offline]
+
+# Free end-to-end check of a deployed app (no upload, so no Claude call): a whole file on an
+# approved agreement, signed by every party, then the signed PDF and its certificate checked.
+LIVE_CHECK_PASSWORD=... uv run python -m scripts.live_check --base <url> --email <account> [--inspect-only]
 
 # One-time: mint the Gmail API refresh token for the dedicated sender account
 uv run python -m scripts.gmail_auth
