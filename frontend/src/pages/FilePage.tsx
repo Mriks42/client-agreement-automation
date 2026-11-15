@@ -399,7 +399,7 @@ function describe(e: FileEvent): string {
     case 'completed':
       return 'Everyone has signed'
     case 'link_copied':
-      return `${by} copied ${who}’s signing link to share it`
+      return `${by} copied the signing link for ${who}, to share it directly`
     case 'email_corrected':
       return `${by} changed ${who}’s email from ${d.from} to ${d.to}`
     case 'name_corrected':
