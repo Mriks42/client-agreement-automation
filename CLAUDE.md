@@ -4,9 +4,9 @@ Context for anyone working in this repo, human or AI. `DECISIONS.md` explains *w
 
 ## Current status (update at the end of every work session)
 
-_Last updated: Sat Nov 14, 2026, end of Day 2. Day 2 was planned for Thu Nov 12, so the project is two days behind._
+_Last updated: Sun Nov 15, 2026 (early morning), end of Day 2. Day 2 was planned for Thu Nov 12, so the project is two days behind._
 
-**Day 2 is done, except the online eval.**
+**Day 2 is done.**
 - **Document pipeline** (library code, not yet behind an endpoint or job):
   1. `services/ingest.py` checks magic bytes and size limits, and converts DOCX to PDF with LibreOffice.
   2. `pdf_engine.normalize_pdf` bakes in page rotation and strips JavaScript and attachments.
@@ -15,25 +15,21 @@ _Last updated: Sat Nov 14, 2026, end of Day 2. Day 2 was planned for Thu Nov 12,
   5. `detection/mapper` builds field rectangles and checks bounds and overlaps.
   6. Any role with nowhere to sign gets an appended signature page.
 - **Eval:** 10 synthetic fixtures. Three were added on Day 2: drawn rules with captions, label-only blocks with dot leaders and a table of contents, and a fillable PDF form.
-  - Offline (heuristics only), full set in the production image: 67/68 blanks (98.5%), signature blocks on 10/10 fixtures, 0 false positives.
+  - **Online (Claude, `claude-opus-5-5`, effort high), all 10 fixtures: 68/68 blanks (100%), signature blocks on 10/10, 0 false positives.** It costs about 4–6¢ and takes about 10 s per agreement (Nov 15, about 45¢ for every run so far). On the two documents with no signature block, Claude also lists the provider as a signer. That's reasonable, and the eval reports it as an extra role, not a failure.
+  - Offline (heuristics only), full set in the production image: 67/68 blanks (98.5%), signature blocks on 10/10, 0 false positives.
   - The fixtures are cleaner than real agreements. Treat these numbers as a regression floor, not as proof of quality on the MIND agreement.
 - **CI** runs the offline eval in two places: the backend job, which skips the DOCX fixture, and inside the Docker image, which runs the full set.
-- **Online eval (Claude) not run yet.** It is blocked on the API key.
 
 **Next: templates, the first half of the graded path.**
+- Before the MIND test: a blind check on one realistic agreement (PDF or DOCX) the pipeline has never seen.
 - Org signup and login.
 - A template upload endpoint that stores the PDF in GridFS and enqueues an `analyze_template` job, which calls `pipeline.analyze`.
 - A review editor: page images with fields overlaid, edit, then approve.
 
-**Blocked on the owner:**
-- Create an `ANTHROPIC_API_KEY` with a spend limit.
-- Add it to Render → kickoff → Environment, and to `backend/.env`.
-- Then run `uv run python -m evals.run` (about $2 for the 10 fixtures) and record the result here.
-
 **Infrastructure (Day 1, unchanged):**
 - **Live app:** https://kickoff-r713.onrender.com
   - Render web service `kickoff`, free plan, Oregon, created from `render.yaml`. It auto-deploys on every push to `main`.
-  - `GET /api/health` reports database, email and worker as ok. LLM shows "not configured" until the Anthropic key is added.
+  - `GET /api/health` reports database, email, worker and LLM as ok. The LLM check only confirms a key is configured; the online eval is the real test.
 - **Database:** MongoDB Atlas M0 `Cluster0` (AWS us-west-2, MongoDB 8.0). The IP access list includes `0.0.0.0/0` for Render.
 - **Email:** Gmail API from `kickoff.signing.test@gmail.com`. The Google Cloud project is `kickoff-email`, and its OAuth app is **In production**, so the refresh token doesn't expire. Email from the live server is verified working. The first test email landed in spam, which is why a copy-link fallback is planned (DECISIONS.md D11).
 - **Monitoring:** UptimeRobot checks `/healthz` every 5 minutes. That keeps the free instance awake and emails the owner on downtime.
@@ -42,6 +38,7 @@ _Last updated: Sat Nov 14, 2026, end of Day 2. Day 2 was planned for Thu Nov 12,
 - **Secrets** live only in the Render dashboard and the owner's private notes. Never in the repo, and never in chat.
 
 **Later reminders:**
+- **Anthropic API key** `kickoff`: Individual org, Default workspace, prepaid with auto-reload off. It expires **Feb 28, 2027**. The balance was about $4.50 on Nov 15. Check it before submitting, and keep at least $2: at $0, detection silently falls back to heuristics. The key is in Render and in `backend/.env` (gitignored).
 - The workspace's 750 free Render hours are shared with two other services; suspend those if grading runs into December.
 - Optional, before submitting: rotate the Atlas DB user's password, and update `MONGODB_URI` in Render to match.
 
