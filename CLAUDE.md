@@ -4,9 +4,33 @@ Context for anyone working in this repo, human or AI. `DECISIONS.md` explains *w
 
 ## Current status (update at the end of every work session)
 
-_Last updated: Wed Nov 11, 2026, end of Day 1._
+_Last updated: Sat Nov 14, 2026, end of Day 2. Day 2 was planned for Thu Nov 12, so the project is two days behind._
 
-**Day 1 is done.**
+**Day 2 is done, except the online eval.**
+- **Document pipeline** (library code, not yet behind an endpoint or job):
+  1. `services/ingest.py` checks magic bytes and size limits, and converts DOCX to PDF with LibreOffice.
+  2. `pdf_engine.normalize_pdf` bakes in page rotation and strips JavaScript and attachments.
+  3. `pdf_engine.extract` finds lines and candidate blanks with measured boxes.
+  4. `detection/pipeline.analyze` labels them with Claude, or with heuristics if Claude fails.
+  5. `detection/mapper` builds field rectangles and checks bounds and overlaps.
+  6. Any role with nowhere to sign gets an appended signature page.
+- **Eval:** 10 synthetic fixtures. Three were added on Day 2: drawn rules with captions, label-only blocks with dot leaders and a table of contents, and a fillable PDF form.
+  - Offline (heuristics only), full set in the production image: 67/68 blanks (98.5%), signature blocks on 10/10 fixtures, 0 false positives.
+  - The fixtures are cleaner than real agreements. Treat these numbers as a regression floor, not as proof of quality on the MIND agreement.
+- **CI** runs the offline eval in two places: the backend job, which skips the DOCX fixture, and inside the Docker image, which runs the full set.
+- **Online eval (Claude) not run yet.** It is blocked on the API key.
+
+**Next: templates, the first half of the graded path.**
+- Org signup and login.
+- A template upload endpoint that stores the PDF in GridFS and enqueues an `analyze_template` job, which calls `pipeline.analyze`.
+- A review editor: page images with fields overlaid, edit, then approve.
+
+**Blocked on the owner:**
+- Create an `ANTHROPIC_API_KEY` with a spend limit.
+- Add it to Render → kickoff → Environment, and to `backend/.env`.
+- Then run `uv run python -m evals.run` (about $2 for the 10 fixtures) and record the result here.
+
+**Infrastructure (Day 1, unchanged):**
 - **Live app:** https://kickoff-r713.onrender.com
   - Render web service `kickoff`, free plan, Oregon, created from `render.yaml`. It auto-deploys on every push to `main`.
   - `GET /api/health` reports database, email and worker as ok. LLM shows "not configured" until the Anthropic key is added.
@@ -14,19 +38,8 @@ _Last updated: Wed Nov 11, 2026, end of Day 1._
 - **Email:** Gmail API from `kickoff.signing.test@gmail.com`. The Google Cloud project is `kickoff-email`, and its OAuth app is **In production**, so the refresh token doesn't expire. Email from the live server is verified working. The first test email landed in spam, which is why a copy-link fallback is planned (DECISIONS.md D11).
 - **Monitoring:** UptimeRobot checks `/healthz` every 5 minutes. That keeps the free instance awake and emails the owner on downtime.
 - **CI:** GitHub Actions is green (backend, frontend, Docker build and boot). CI uses MongoDB 7.0; see the comment in `ci.yml`.
-- **Built so far:** the FastAPI app factory, the durable job queue, the email layer, health and ops endpoints, the frontend shell, and 7 synthetic eval fixtures under `backend/evals/`.
+- **Built on Day 1:** the FastAPI app factory, the durable job queue, the email layer, health and ops endpoints, and the frontend shell.
 - **Secrets** live only in the Render dashboard and the owner's private notes. Never in the repo, and never in chat.
-
-**Next: Day 2 (Thu Nov 12), the document pipeline.**
-- Ingest PDF and DOCX.
-- Extract lines and blank slots with real bounding boxes.
-- LLM labelling (`claude-opus-5-5`, structured outputs).
-- Heuristics fallback, mapping labels to rectangles, and the appended signature page.
-- The eval runner (`evals/run.py`).
-
-Exit criterion: every signature block is found on every fixture, and at least 90% of blanks are classified correctly.
-
-**Blocked on the owner:** create an `ANTHROPIC_API_KEY` with a spend limit, and add it to Render → kickoff → Environment, and to `backend/.env` for local evals.
 
 **Later reminders:**
 - The workspace's 750 free Render hours are shared with two other services; suspend those if grading runs into December.
@@ -88,11 +101,11 @@ backend/
     config.py            Settings (env vars below)
     db.py                Mongo client, indexes, GridFS buckets
     api/                 Routers: auth, templates, files, signing (public, token-auth), v1 (API-key auth), verify, health
-    domain/              Pydantic models + state enums
+    domain/              Pydantic models + state enums (fields.py: Field, Role, Rect)
     services/
       ingest.py          Upload validation, DOCX→PDF
       pdf_engine.py      Extract lines/slots, render PNGs, stamp fields, append pages (the only PyMuPDF import)
-      detection/         schema.py, prompt.py, llm.py, heuristics.py, mapper.py
+      detection/         schema.py, prompt.py, llm.py, heuristics.py, mapper.py, pipeline.py (analyze: the entry point)
       signing.py         File/recipient state machine, routing, atomic transitions
       finalize.py        Flatten values, audit certificate, SHA-256
       email/             EmailSender protocol, gmail_api.py, console.py, templates/
@@ -125,6 +138,9 @@ uv run mypy app
 uv run python -m evals.make_fixtures   # regenerate the synthetic agreements
 uv run python -m evals.run --offline   # heuristics only, free
 uv run python -m evals.run             # full pipeline against claude-opus-5-5
+uv run python -m evals.run --baseline evals/out/<earlier>.json   # compare two runs
+# The DOCX fixture needs LibreOffice, so run the full offline set inside the image:
+docker build -t agreement-app .. && docker run --rm -e APP_ENV=test agreement-app python -m evals.run --offline
 
 # One-time: mint the Gmail API refresh token for the dedicated sender account
 uv run python -m scripts.gmail_auth
@@ -164,7 +180,11 @@ Defined in `backend/app/config.py`. Never commit `.env`; keep `.env.example` cur
 
 - **Org**: a customer company (tenant). Every other document carries `org_id`.
 - **Template**: an uploaded agreement normalized to PDF, plus its approved **fields** and **roles**. Templates are versioned, and editing an active one creates a new version.
-- **Field**: a rectangle on a page, stored in **PDF points with a top-left origin**. Each field has a `type` (`signature`, `initials`, `date_signed`, `name`, `text`, `checkbox`), a `filled_by` (`sender` or a role key), a `key`, a label, `required`, and a `source` (`ai`, `heuristic`, or `manual`).
+- **Field**: a rectangle on a page, stored in **PDF points with a top-left origin**. Pages are 1-based, and coordinates refer to the normalized PDF, with rotation already baked in. Each field has:
+  - a `type`: `signature`, `initials`, `date_signed`, `name`, `text`, `date` (a sender-filled date such as an effective date), or `checkbox`;
+  - a `filled_by`: `sender` or a role key;
+  - a `key`: fields that share a key and `filled_by` share one value, so each `[CLIENT NAME]` is typed once and initials are adopted once;
+  - a label, `required`, `source` (`ai`, `heuristic`, or `manual`), and `redact` (placeholder text removed before the value is written).
 - **Role**: a signing party in the agreement, for example `client` or `firm`. Roles have an order for sequential routing.
 - **File**: one job or case for one client. It holds a snapshot of the template version, the sender-filled values, the recipients, the status, and the hashes.
 - **Recipient**: a person assigned to a role on a file. Each recipient has its own token, status, and audit data.
