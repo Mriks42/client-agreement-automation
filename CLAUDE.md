@@ -4,55 +4,81 @@ Context for anyone working in this repo, human or AI. `DECISIONS.md` explains *w
 
 ## Current status (update at the end of every work session)
 
-_Last updated: Sun Nov 15, 2026 (morning), end of Day 3. Still two days behind the original plan; the schedule below absorbs it._
+_Last updated: Sun Nov 15, 2026 (afternoon), end of Day 4. Day 4 finished a day ahead of the revised schedule, so finalize moves up to Monday._
 
-**Next session: Day 4 (Mon), files and signing.** This is the second half of the graded path: Anthony opens a file from his approved agreement, previews it, sends it, and signs it from his inbox.
-- **Backend:**
-  1. **Files.** `POST /api/files` from an `active` template. It snapshots the template's `version`, `pdf_blob_id`, `roles` and `fields` (with `redact`) into the file, so later template edits can't change it. It stores sender values keyed by `(filled_by, key)`; fields that share a key share one value. Recipients get one name and email per role. Status starts at `draft`. Use `repo.Tenant` (add nothing that bypasses it).
-  2. **Preview.** `GET /api/files/{id}/preview.pdf` stamps the sender values with `pdf_engine.stamp`, which is the exact PDF that goes out. Send is an atomic `draft → sent`.
-  3. **Recipients and routing.** One random 256-bit token per recipient, stored as a SHA-256 hash only. Only the current signer in `order` gets a link; when they sign, the next is enqueued. Signing emails go through `enqueue_email` (D11 transactional text plus HTML). The file page has **Copy signing link**, recorded as an event, and a check-spam hint after sending.
-  4. **Public signing API** (token auth, no session): view, consent (ESIGN), submit values plus the signature (typed, or drawn PNG), decline with a reason. Each step is an append-only event with IP, user agent and time.
-  5. **Reminders:** day 2 and day 5, using the worker's `every()` hook or due-time jobs. Expiry at 30 days.
-- **Frontend:**
-  - New-file form generated from the template's sender fields (one input per shared key, typed by field type), plus a name and email per signer.
-  - A preview of the exact PDF, then Confirm and send.
-  - A file page with a timeline, Copy signing link, Resend to a corrected email, and Void.
-  - The signing page, mobile first: consent, then guided steps through that signer's fields, `signature_pad` or typed signature, dates filled in automatically, and decline.
-- **Exit criterion:** on the live app, open a file from an approved agreement, preview, send, receive the email (or copy the link), and sign as the client and then as the firm.
+**Next session: Day 5 (Mon Nov 16), finalize.** This is the last piece of the graded path: the signed PDF with its certificate, sent to everyone.
+- **`finalize_file` job.** `signing.submit` already enqueues it when the last signer signs (dedupe key `finalize_file:<file id>`). No handler is registered yet, so those jobs sit `pending` and run as soon as one is. Write it in `services/finalize.py` and register it in `worker/handlers.py`:
+  1. Stamp every value: `signing.current_pdf` already does this (prepared PDF plus each signer's values, drawn marks loaded by `mark_images`).
+  2. Append an audit certificate page (a new `pdf_engine` function). It shows the file id; the agreement name and version; the SHA-256 of the template PDF and of the prepared PDF (`file.prepared.sha256`); for each signer, their name, email, role, viewed, consented and signed times, IP, user agent and signature method (typed or drawn); and how to verify (compare SHA-256).
+  3. Store the result as a blob. Set `final_blob_id`, `final_sha256` and `finalized_at` in one conditional update (`finalized_at: None`), so a rerun skips straight to the emails.
+  4. Email the signed PDF to every signer and to the sender with `enqueue_email` (attachment by blob id, one dedupe key per address). Record a `finalized` event.
+  5. UI: **Download signed agreement** on the file page and on the signer's "completed" page (by token). The banner already switches on `finalized_at`. If the job dies, show it on the file page with a **Try again** button (re-enqueue it).
+- **Exit criterion:** on the live app, a fully signed file produces the signed PDF with a certificate page, every party receives it by email, and the file page downloads it.
+- **Then, Monday evening: the blind-test round** (plan below).
+
+**Blind-test round (Mon evening, about 2.5 h and $2–3 of credit).** The grade is one live run on an agreement we've never seen, so measure the whole path on six more unseen agreements, judged on the first run, and fix only what would break Anthony's path.
+- **Before starting:** the owner tops up $5 (balance then about $7). Day 5 should be live, so every run ends in a signed PDF with its certificate.
+- **The set.** Public templates only. Download them into `backend/samples/` (git-ignored); none has been seen before.
+  1. Accounting engagement letter, Word: Journal of Accountancy's sample 1040 letter (`.doc`, with bracketed placeholders). Upload the `.doc` first to check the refusal and its next step, then save it as `.docx` and upload that. https://www.journalofaccountancy.com/wp-content/uploads/sites/3/2014/01/1040-engagement-letter-sample.doc
+  2. Accounting engagement letter, PDF: the CPAi (AICPA insurance program) individual tax letter. This is a different signing style, where the firm may be the only signer. https://forms.cpai.com/pdfs/TAX_Individual_2016_FINAL.pdf
+  3. A fillable PDF (AcroForm fields): one of WCG CPAs' fillable engagement letters. https://wcginc.com/tax-center/engagement/
+  4. Consulting agreement, closest to an AI consultancy's: PlatoForms' 2-page Business Consulting Services Agreement (client and consultant signature blocks). https://templates.platoforms.com/pdf/business-consulting-services-agreement
+  5. Long terms with few blanks: the AIGA Standard Form of Agreement for Design Services. It tests page count, latency and the appended signature page. https://aiga.org/resources/aiga-standard-form-of-agreement-for-design-services
+  6. A scan: #4 printed to an image-only PDF (no text layer). It tests the scan fallback (an appended signature page, plus manual placement).
+  - Backups if a download is gated: the AICPA amended-return letter, Wonder.legal's US consulting agreement, or a Google Docs export of any of the above.
+- **Each document, on the live app with Claude:** upload, then note the analysis time and cost (`detection.llm` on the template). Count the edits needed before Approve. Open a file, preview, send, sign as the client on a phone viewport and then as the firm, and open the final PDF. Use fake details throughout, and plus-addresses of the sending inbox for the signers. For a quick look while triaging, use `scripts.demo_sign` (same cost).
+- **Score:** signers and signing order right; signature blocks found in the document (or a page appended); blanks found out of the total; false positives; who fills each field (sender or signer) right; reviewer edits needed; anything wrong on the signing page or in the final PDF.
+- **Pass bar:** each document reaches a signed PDF with correct signers and order, and needs at most 5 reviewer edits. **Blockers:** a crash, an analysis that never finishes, the wrong signing order, or a missing signature block that is hard to fix in the editor.
+- **Triage:** fix blockers Monday night or first thing Tuesday, each with a test or an eval fixture. A prompt change needs an `evals.run` comparison (about 55¢ online; say so before running it). Everything else goes to DECISIONS.md as a known limitation. Nothing after the Tuesday 12:00 freeze.
+- **Budget:** first pass about $1–1.50 (5–40¢ a document), reruns after fixes about $0.50–1, one online eval about 55¢. That's $2–3 in all, which leaves about $4 for grading, above the $2 floor.
+- **Record** the results in the DECISIONS.md change log (as for the earlier blind tests) and in this status.
 
 **Cuts applied (Nov 15):** the "if time allows" items, the verify page, logo and colour branding, bounce detection, and the template-versioning UI. Don't build them. The API and webhooks stay in scope, scheduled last. See DECISIONS.md "If behind schedule".
 
 **Remaining schedule:**
-- **Mon:** Day 4, files and signing (above).
-- **Tue morning:** finalize. Stamp every value, add the audit certificate page and SHA-256 hashes, email the signed PDF to every party, and mark the file "Signed: ready to start work". Then polish, and the API and webhooks if there's time.
+- **Mon:** Day 5, finalize (above), then the blind-test round in the evening.
+- **Tue morning:** fix blind-test blockers, then the API and webhooks if there's time, then polish.
 - **Hard stops:** feature freeze Tue 12:00, final deploy verified by 17:00, last commit by 20:00 MST.
 
-**Day 3 is done, and verified on the live app.**
-- **Auth (D14):** `services/accounts.py`, `api/auth.py`, `api/deps.py` (`UserDep`, `TenantDep`).
-  - argon2id hashes, verified off the event loop.
-  - A session is a random token in an httpOnly, SameSite=Lax cookie (`Secure` in prod). The DB stores only an HMAC of it keyed with `SESSION_SECRET`, and logout deletes it.
-  - Failed logins are throttled per email (10 per 15 minutes, in-process). Cross-site state-changing `/api/` calls are refused by `Origin`.
-- **Tenant isolation:** `app/repo.py` `Tenant` adds `org_id` to every query, and `transition()` is the atomic conditional update. Cross-org access to every template endpoint returns 404 (tested).
-- **Templates:** `services/templates.py` and `api/templates.py`.
-  - Statuses: `analyzing → needs_review → active`, with `analysis_failed` offering **Try again** or **Place the fields myself**.
-  - `revision` goes up on every write, and saves and approvals must name it (409 on mismatch). `version` goes up when an approved template is edited; that edit needs approval again.
-  - Approval needs every signer to have a signature field.
-  - `redact` rectangles are server-owned, kept by field id across edits.
-  - Page PNGs are rendered on demand at 110 dpi, cached in-process (24 MB) and in the browser.
-- **Queue:** per-`JobType` lease (`analyze_template` holds 10 minutes, with 2 attempts); handlers are cancelled 30 s before their lease ends; and on shutdown the worker hands running jobs back, so a deploy doesn't strand an analysis.
+**Day 4 is done, and verified on the live app.**
+- **Files** (`services/files.py`, `api/files.py`):
+  - A file copies the approved template (version, PDF, roles, and fields with their redactions) when it's created.
+  - The new-file form is `domain/fields.sender_inputs`: one input per shared key. Values are stored by key. There's one signer per role, held as embedded `recipients` in signing order.
+  - The draft preview is the "prepared" PDF (sender values stamped), stored per `revision` with its SHA-256. Send must name the revision the sender previewed, then does an atomic `draft → sent`.
+  - Empty required blanks are listed in the preview but don't block sending.
+  - Also: delete a draft, Copy signing link, correct a name or email (correcting the current signer's email retires their old links and sends a new one), Resend (once a minute at most), and Void with a reason.
+- **Signing** (`services/signing.py`, `api/signing.py`):
+  - The state machine, routing and the signer's steps live here. A signature, the file's new status and the next signer's activation are one atomic update.
+  - The public API (token in the path, no session) has view, consent, submit and decline. Each step is an event (`services/events.py`) with IP and user agent.
+  - Tokens are 256-bit and stored only as SHA-256 (`recipients.token_hashes`). They're minted inside the `signing_email` job or by Copy signing link, so a raw token never sits in the database.
+  - Reminders (day 2 and 5) are due-time jobs scheduled when a signer becomes current, and each checks the signer still hasn't signed. Expiry is a due-time job at 30 days that emails the sender. A dead signing email shows on the file with a way out.
+  - "Date signed" uses the signer's own time zone. A signer's checkboxes are never required.
+  - Signing paths are redacted in request logs and Sentry.
+  - **Gotcha, documented in `is_current`:** never filter on `recipients.<i>.<field>` with null or not-null tests. MongoDB also reads that path as a field named "0" inside each element, so null always matches. Use `$elemMatch`.
+- **Emails** (`email/messages.py`): invitation, reminder, resend, declined and expired, each with a text part and an HTML part. From the firm's name, Reply-To the sender.
 - **Frontend:**
-  - Signup, login, and an agreements list.
-  - Upload: PDF or DOCX, with progress and page previews while analyzing.
-  - The review editor: fields overlaid in percentages of the page's point size; click to edit; drag to move; corners to resize; click or drag to add; Delete, arrow-key nudges and undo; signers with order. It shows the AI notes and any fallback, warns about unsaved changes, and has Approve.
-- **Verified in headless Chrome** (puppeteer-core against the local Chrome, run from a scratch folder rather than the repo): sign up, upload, review, rename and drag a field, add a field, save, approve.
-  - **Live, with Claude:** a 2-page PDF took 16 s (13 fields, both signers in the right order). A DOCX took 10 s to convert during upload, then 13 s to analyze (9 fields).
-  - **Live, with Claude, Common Paper PSA (6 pages, the 156-blank template):** 137 s and 152 fields. Both signature blocks were found in the document (pages 2 and 6), so no page was appended. Customer signs 1st and Provider 2nd, with 10 fields each. The notes were useful (pre-ticked option boxes, delete unused optional rows). With keyword rules only, the same document gives 160 fields plus an appended signature page.
-  - Tests: 100 backend tests pass, plus ruff, mypy, typecheck, lint and build. CI is green.
+  - A Files list (now the home page after login), and the new-file form, which also edits a draft.
+  - The draft page shows the exact pages, then Confirm and send.
+  - The file page shows status, check-spam hint, signers with Copy link, Resend and Change email, the timeline and Void.
+  - The signing page is mobile first: ESIGN consent, Next walks each field, typed or drawn signature, dates filled in, decline. Its overlay draws values with the same size and baseline rules as `pdf_engine._write`, so what the signer sees matches the PDF.
+  - Drawn signatures are stamped on the line at the left.
+- **Verified:**
+  - **Local, headless Chrome:** the whole flow, with the client on an iPhone 13 viewport (typed signature) and the firm on desktop (drawn signature).
+  - **Live, with Claude** (2-page fixture, 13 s analysis): sign up, approve, new file, preview, send, Copy signing link, client signs, firm countersigns from its copied link, "Signed: ready to start work". The Gmail API accepted both signing emails, sent to plus-addresses of the sending inbox. **Inbox vs spam placement still needs checking in that inbox.**
+  - Tests: 112 backend tests pass (cross-org 404 on every file endpoint, stale revisions, token storage, decline, void, reminders, expiry, a failed email), plus ruff, mypy, typecheck, lint and build. CI is green.
 - **Known gaps, accepted:**
-  - The editor is desktop-first; it renders on a phone but isn't comfortable there.
-  - Templates can't be deleted or archived.
-  - The login throttle and page cache are per-process, which is fine on one instance.
-  - Test accounts named `e2e+<timestamp>@example.com` exist in the live DB.
+  - Finalize isn't built yet (Day 5).
+  - Void doesn't email the current signer; their link says the agreement was withdrawn.
+  - If the process dies in the instant between a signature's update and queueing the next signer's emails, that signer gets nothing until the sender uses Resend or Copy link.
+  - A delivered-but-lost email isn't detected (bounce detection was cut). Copy link and Resend cover it.
+  - `.doc` uploads are refused with a "save as .docx or PDF" message. Accepting them through LibreOffice would be a small change, if the blind test shows a need.
+
+**Day 3 (templates), for reference:**
+- Auth (D14): argon2id; server-side sessions stored as an HMAC of the cookie token; a per-email login throttle; cross-site `/api/` writes refused by `Origin`.
+- `repo.Tenant` adds `org_id` to every query, and `transition()` is the atomic conditional update. `find_file_by_signing_token` is the one unscoped lookup (the token is the credential).
+- Templates: `analyzing → needs_review → active`, with `analysis_failed` offering **Try again** or **Place the fields myself**. `revision` guards edits; `version` goes up when an approved template is edited. Approval needs a signature field for every signer.
+- The review editor is desktop-first. Live with Claude, the Common Paper PSA (6 pages, 156 blanks) took 137 s and gave 152 fields, with both signature blocks found in the document.
+- Templates can't be deleted. The login throttle and page cache are per-process. Test accounts named `e2e+<timestamp>@example.com` exist in the live DB.
 
 **Day 2 (document pipeline), for reference:**
 - The pipeline: `ingest` → `normalize_pdf` → `extract` → `detection/pipeline.analyze` (Claude, or heuristics on any failure) → `mapper` → an appended signature page if needed. `pdf_engine.stamp` writes values, and finalization reuses it. Preview any agreement with `uv run python -m scripts.demo_sign samples/<file>`.
@@ -72,7 +98,7 @@ _Last updated: Sun Nov 15, 2026 (morning), end of Day 3. Still two days behind t
 - **Secrets** live only in the Render dashboard and the owner's private notes. Never in the repo, and never in chat.
 
 **Later reminders:**
-- **Anthropic API key** `kickoff`: Individual org, Default workspace, prepaid with auto-reload off. It expires **Feb 28, 2027**. The balance was about $2.60 on Nov 15, before three live Day 3 runs (about 5¢, 5¢ and 41¢), so it's now about **$2.10, just above the $2 floor: top it up before grading**. Check it before submitting, and keep at least $2: at $0, detection silently falls back to heuristics. The key is in Render and in `backend/.env` (gitignored).
+- **Anthropic API key** `kickoff`: Individual org, Default workspace, prepaid with auto-reload off. It expires **Feb 28, 2027**. The balance was about $2.60 on Nov 15, before three live Day 3 runs (about 5¢, 5¢ and 41¢) and the Day 4 live run (about 5¢), so it's now about **$2.05, just above the $2 floor**. The owner will add $5 before the blind-test round. Check it before submitting, and keep at least $2: at $0, detection silently falls back to heuristics. The key is in Render and in `backend/.env` (gitignored).
 - The workspace's 750 free Render hours are shared with two other services; suspend those if grading runs into December.
 - Optional, before submitting: rotate the Atlas DB user's password, and update `MONGODB_URI` in Render to match.
 
@@ -132,7 +158,7 @@ backend/
     config.py            Settings (env vars below)
     db.py                Mongo client, indexes, GridFS buckets
     repo.py              Tenant: the only way to query tenant collections (adds org_id; atomic transition())
-    api/                 Routers: auth, templates, files, signing (public, token-auth), v1 (API-key auth), verify, health
+    api/                 Routers: auth, templates, files, signing (public, token-auth), health, ops; v1 (API-key auth) later
     domain/              Pydantic models + state enums (fields.py: Field, Role, Rect)
     services/
       accounts.py        Orgs, users, argon2 passwords, HMAC-keyed sessions, login throttle
@@ -141,11 +167,14 @@ backend/
       ingest.py          Upload validation, DOCX→PDF
       pdf_engine.py      Extract lines/slots, render PNGs, stamp fields, append pages (the only PyMuPDF import)
       detection/         schema.py, prompt.py, llm.py, heuristics.py, mapper.py, pipeline.py (analyze: the entry point)
-      signing.py         File/recipient state machine, routing, atomic transitions
-      finalize.py        Flatten values, audit certificate, SHA-256
-      email/             EmailSender protocol, gmail_api.py, console.py, templates/
+      files.py           Files: create from an approved template, edit a draft, prepare (preview), send, copy link, resend, void
+      signing.py         File/recipient state machine, routing, tokens, the signer's steps, signing email/expiry jobs
+      events.py          Append-only audit events
+      errors.py          NotFound / Conflict / Invalid, mapped to 404 / 409 / 422 by the routers
+      finalize.py        Flatten values, audit certificate, SHA-256 (Day 5)
+      email/             EmailSender protocol, gmail_api.py, console.py, messages.py (email text), outbox.py (enqueue_email)
       webhooks.py        Outbound webhooks (HMAC-SHA256)
-    worker/              queue.py (claim/backoff/dead-letter), handlers.py, scheduler.py
+    worker/              queue.py (claim/backoff/dead-letter, due-time jobs), handlers.py (the job registry)
   tests/
   evals/                 fixtures/ (synthetic agreements), expected/ (labels), make_fixtures.py, run.py
   scripts/               gmail_auth.py (mints the Gmail refresh token), demo_sign.py (preview detection + a fake-signed PDF), seed_demo.py
