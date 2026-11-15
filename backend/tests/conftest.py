@@ -23,6 +23,8 @@ def make_settings(**overrides: object) -> Settings:
         "run_worker": False,  # tests drive the worker explicitly via Worker.drain()
         "email_backend": "console",
         "frontend_dist": "/nonexistent",
+        # Never call the real Claude API from tests, even if the shell exports a key.
+        "anthropic_api_key": None,
     }
     base.update(overrides)
     return Settings(_env_file=None, **base)  # type: ignore[call-arg]
@@ -56,3 +58,25 @@ async def client(app: FastAPI) -> AsyncIterator[httpx.AsyncClient]:
 @pytest.fixture
 def db(app: FastAPI):  # type: ignore[no-untyped-def]
     return app.state.db.db
+
+
+async def signup(
+    client: httpx.AsyncClient,
+    email: str = "owner@example.com",
+    org_name: str = "Acme Test Co",
+    password: str = "correct horse battery",
+) -> dict[str, object]:
+    r = await client.post(
+        "/api/auth/signup",
+        json={"org_name": org_name, "name": "Test Owner", "email": email, "password": password},
+    )
+    assert r.status_code == 201, r.text
+    return r.json()
+
+
+@pytest_asyncio.fixture
+async def second_client(app: FastAPI) -> AsyncIterator[httpx.AsyncClient]:
+    """Another browser: its own cookie jar, so it can be logged in to a different company."""
+    transport = httpx.ASGITransport(app=app)
+    async with httpx.AsyncClient(transport=transport, base_url="http://test") as c:
+        yield c

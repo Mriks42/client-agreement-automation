@@ -8,15 +8,17 @@ import uuid
 from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager, suppress
 from pathlib import Path
+from urllib.parse import urlsplit
 
 from fastapi import FastAPI, HTTPException, Request, Response
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
-from app.api import health, ops
+from app.api import auth, health, ops
 from app.config import Settings, get_settings
 from app.db import connect
 from app.logging_setup import configure_logging, request_id_var
+from app.services.accounts import LoginThrottle
 from app.services.email import EmailSender, build_email_sender
 from app.worker.handlers import build_registry
 from app.worker.queue import Worker
@@ -34,18 +36,17 @@ def create_app(settings: Settings | None = None, email: EmailSender | None = Non
         app.state.db = await connect(settings)
         app.state.email = email or build_email_sender(settings)
         app.state.email_check_cache = {}
+        app.state.login_throttle = LoginThrottle()
+        # What job handlers get in ctx.services. Tests build a Worker from this same dict.
+        app.state.services = {
+            "email": app.state.email,
+            "blobs": app.state.db.blobs,
+            "settings": settings,
+        }
         app.state.worker = None
         worker_task: asyncio.Task[None] | None = None
         if settings.run_worker:
-            worker = Worker(
-                app.state.db.db,
-                build_registry(),
-                services={
-                    "email": app.state.email,
-                    "blobs": app.state.db.blobs,
-                    "settings": settings,
-                },
-            )
+            worker = Worker(app.state.db.db, build_registry(), services=app.state.services)
             app.state.worker = worker
             worker_task = asyncio.create_task(worker.run_forever())
         log.info("startup complete", extra={"env": settings.app_env, "version": settings.git_sha})
@@ -76,7 +77,13 @@ def create_app(settings: Settings | None = None, email: EmailSender | None = Non
         token = request_id_var.set(rid)
         start = time.perf_counter()
         try:
-            response = await call_next(request)
+            response: Response
+            if _cross_site(request, settings):
+                response = JSONResponse(
+                    {"detail": "Cross-site request refused.", "request_id": rid}, status_code=403
+                )
+            else:
+                response = await call_next(request)
         except Exception:
             log.exception("unhandled error", extra={"path": request.url.path})
             response = JSONResponse(
@@ -109,9 +116,26 @@ def create_app(settings: Settings | None = None, email: EmailSender | None = Non
 
     app.include_router(health.router)
     app.include_router(ops.router)
+    app.include_router(auth.router)
 
     _mount_spa(app, settings)
     return app
+
+
+_SAFE_METHODS = frozenset({"GET", "HEAD", "OPTIONS"})
+
+
+def _cross_site(request: Request, settings: Settings) -> bool:
+    """Defence in depth next to SameSite=Lax cookies: refuse a state-changing API call whose
+    Origin is another site. Server-to-server callers send no Origin and are unaffected."""
+    if request.method in _SAFE_METHODS or not request.url.path.startswith("/api/"):
+        return False
+    origin = request.headers.get("origin")
+    if not origin:
+        return False
+    host = urlsplit(origin).netloc
+    allowed = {request.headers.get("host", ""), urlsplit(settings.app_base_url).netloc}
+    return host not in allowed
 
 
 def _mount_spa(app: FastAPI, settings: Settings) -> None:

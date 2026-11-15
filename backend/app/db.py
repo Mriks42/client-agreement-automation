@@ -49,4 +49,6 @@ async def ensure_indexes(database: Database) -> None:
         "dedupe_key", unique=True, partialFilterExpression={"dedupe_key": {"$type": "string"}}
     )
     await db.worker_heartbeats.create_index("updated_at", expireAfterSeconds=3600)
+    await db.users.create_index("email", unique=True)
+    await db.sessions.create_index("expires_at", expireAfterSeconds=0)
     log.info("indexes ensured")
