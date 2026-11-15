@@ -14,6 +14,8 @@ from dataclasses import dataclass, field
 from app.services.detection.schema import Labels, Party, SlotLabel, SlotType, slug
 from app.services.pdf_engine import Extraction, Line, PageText, Slot
 
+FALLBACK_WARNING = "Fields were proposed by keyword rules, not AI. Check every field carefully."
+
 _SIGNATURE = re.compile(r"\b(signature|signed|sign here|signatory)\b|^by\b", re.I)
 _INITIALS = re.compile(r"\binitials?\b", re.I)
 _NAME = re.compile(r"\bname\b", re.I)
@@ -158,7 +160,7 @@ def label(extraction: Extraction) -> Labels:
     ]
     rank = {"client": 0, "firm": 1, "other": 2}
     order = [p.key for p in sorted(party_list, key=lambda p: rank[p.kind]) if p.signs_here]
-    warnings = ["Fields were proposed by keyword rules, not AI. Check every field carefully."]
+    warnings = [FALLBACK_WARNING]
     return Labels(parties=party_list, signing_order=order, slots=out_slots, warnings=warnings)
 
 

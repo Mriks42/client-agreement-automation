@@ -29,7 +29,7 @@ from app.domain.fields import SENDER, SIGNER_ONLY_TYPES, Field, Rect, Role
 from app.repo import Tenant
 from app.services import ingest, pdf_engine, storage
 from app.services.accounts import CurrentUser
-from app.services.detection import pipeline
+from app.services.detection import heuristics, pipeline
 from app.services.detection.schema import slug
 from app.worker.queue import enqueue, utcnow
 
@@ -203,7 +203,8 @@ async def run_analysis(
                 "pages": [{"width": w, "height": h} for w, h in sizes],
                 "roles": [r.model_dump() for r in analysis.roles],
                 "fields": [f.model_dump() for f in analysis.fields],
-                "warnings": analysis.warnings,
+                # The editor explains a fallback itself, with the reason.
+                "warnings": [w for w in analysis.warnings if w != heuristics.FALLBACK_WARNING],
                 "detection": detection,
                 "analysis_error": None,
                 "updated_at": finished,
