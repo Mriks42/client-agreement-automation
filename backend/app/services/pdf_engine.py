@@ -88,6 +88,8 @@ class Slot:
         """The text a person would use to name this blank."""
         if self.kind == "placeholder":
             return self.text
+        if self.kind == "checkbox":
+            return self.before.strip() or self.after.strip() or self.text
         return self.before.strip() or self.caption.strip() or self.text
 
 
@@ -211,12 +213,19 @@ def render_page_png(data: bytes, page: int, *, dpi: int = 110) -> bytes:
 
 
 # ---- extract ----------------------------------------------------------------------------------
-_PLACEHOLDER_RE = re.compile(r"\[[^\[\]]{1,80}\]|\{\{[^{}]{1,80}\}\}|<<[^<>]{1,80}>>|«[^«»]{1,80}»")
-# Brackets that are legal drafting, not blanks: [1], [a], [iv], [sic], [emphasis added].
-_NOT_PLACEHOLDER_RE = re.compile(
-    r"^\[\s*(\d+|[a-z]|[ivxlc]+|sic|emphasis added|reserved|intentionally left blank)\s*\]$",
-    re.I,
+# Long limits: templates use multi-line instructions such as "[Describe the services ...]".
+_PLACEHOLDER_RE = re.compile(
+    r"\[[^\[\]]{1,400}\]|\{\{[^{}]{1,120}\}\}|<<[^<>]{1,120}>>|«[^«»]{1,120}»"
+    r"|\(\s{0,6}[X✓✔]?\s{0,6}\)"  # option boxes "( )"; lowercase "(x)" is a clause number
 )
+# Brackets that are drafting, not blanks: [1], [a], [iv], [sic], [Drafting note: ...]. Roman
+# numerals are lowercase only: "[XX]" is a placeholder.
+_NOT_PLACEHOLDER_RE = re.compile(
+    r"^\[\s*(?:\d+|[a-z]|[ivx]{1,4}|(?i:sic|emphasis added|reserved|intentionally left blank))"
+    r"\s*\]$"
+    r"|^\[\s*(?i:drafting note|note to drafter|note to draft|note)\b"
+)
+_OPTION_BOX_RE = re.compile(r"[\[(]\s?[xX✓✔]?\s?[\])]")
 _CHECKBOX_CHARS = frozenset("☐□❑❒▢☑☒")
 _LABEL_RE = re.compile(
     r"(?:[A-Za-z'\u2019]+\s){0,3}"
@@ -376,7 +385,10 @@ def _placeholders(lines: list[_RawLine]) -> list[_Draft]:
         text = "".join(ch.c if ch else " " for _, ch in stream)
         for m in _PLACEHOLDER_RE.finditer(text):
             inner = re.sub(r"\s+", " ", m.group(0)).strip()
-            if _NOT_PLACEHOLDER_RE.match(inner) or not re.search(r"[A-Za-z●•_]", inner):
+            kind: SlotKind = "checkbox" if _OPTION_BOX_RE.fullmatch(inner) else "placeholder"
+            if kind == "placeholder" and (
+                _NOT_PLACEHOLDER_RE.match(inner) or not re.search(r"[A-Za-z●•_#]", inner)
+            ):
                 continue
             parts: dict[int, tuple[_RawLine, list[Box]]] = {}
             for ln, ch in stream[m.start() : m.end()]:
@@ -387,15 +399,27 @@ def _placeholders(lines: list[_RawLine]) -> list[_Draft]:
             first_line = next(iter(parts.values()))[0]
             drafts.append(
                 _Draft(
-                    kind="placeholder",
-                    bbox=rects[0],
+                    kind=kind,
+                    bbox=_placeholder_box(rects),
                     baseline=first_line.baseline,
                     line=first_line,
                     text=inner,
-                    redact=rects,
+                    redact=rects if kind == "placeholder" else [],
                 )
             )
     return drafts
+
+
+def _placeholder_box(rects: list[Box]) -> Box:
+    """Where a value replacing this placeholder goes. A multi-line placeholder that starts its
+    own line (a paragraph or table cell of instructions) becomes one block. One that starts
+    mid-sentence shares its lines with other text, so the value goes in its widest fragment."""
+    if len(rects) == 1:
+        return rects[0]
+    left = min(r.x0 for r in rects[1:])
+    if rects[0].x0 <= left + 12:
+        return Box(left, rects[0].y0, max(r.x1 for r in rects), rects[-1].y1)
+    return max(rects, key=lambda r: r.width)
 
 
 def _char_runs(line: _RawLine, covered: list[Box]) -> list[_Draft]:
@@ -465,6 +489,8 @@ def _drawn_lines(page: pymupdf.Page, lines: list[_RawLine], existing: list[_Draf
     drafts: list[_Draft] = []
     for seg in _merge_segments(horizontals):
         y = seg.y0
+        if seg.width >= 0.75 * page.rect.width:
+            continue  # a table row rule or decorative separator, never a fill-in line
         if touches_vertical(seg.x0, y) and touches_vertical(seg.x1, y):
             continue  # table border
         above = [
@@ -558,6 +584,14 @@ def _attach_context(slots: list[Slot], drafts: list[_Draft], lines: list[_RawLin
             slots[i].before = _clean(_text_between(line, left, box.x0))
             slots[i].after = _clean(_text_between(line, box.x1, right))
     for i, slot in enumerate(slots):
+        if slot.kind == "checkbox" and not slot.after:
+            box = drafts[i].bbox
+            right_of = [
+                ln for ln in lines if _same_row(ln.bbox, box) and 0 <= ln.bbox.x0 - box.x1 <= 300
+            ]
+            if right_of:
+                slot.after = _clean(min(right_of, key=lambda ln: ln.bbox.x0).text)
+            continue
         if re.search(r"[A-Za-z]", slot.before + slot.after) or slot.kind == "placeholder":
             continue
         box = drafts[i].bbox

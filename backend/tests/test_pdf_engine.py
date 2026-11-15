@@ -202,3 +202,69 @@ def test_render_page_png() -> None:
     assert png.startswith(b"\x89PNG")
     with pytest.raises(pe.PdfError):
         pe.render_page_png(make_pdf(lambda p: None), 2)
+
+
+# ---- template patterns found in a blind test (Common Paper PSA cover page) --------------------
+def test_template_placeholders_and_drafting_notes() -> None:
+    def draw(page: pymupdf.Page) -> None:
+        page.insert_text((72, 100), "This SOW [XX] has a rejection period of [ # ] days.")
+        page.insert_text(
+            (72, 130), "[Drafting note: delete this row if unused.] See [iv] and [ii]."
+        )
+
+    slots = slots_of(make_pdf(draw))
+    assert [(s.kind, s.text) for s in slots] == [("placeholder", "[XX]"), ("placeholder", "[ # ]")]
+
+
+def test_long_instruction_placeholder_becomes_one_block() -> None:
+    text = (
+        "[Describe the services to be performed, including key people,\n"
+        "the overall timeline, milestones and anything else the client\n"
+        "should know before work starts.]"
+    )
+
+    def draw(page: pymupdf.Page) -> None:
+        page.insert_text((100, 100), text, fontsize=10)
+
+    [slot] = slots_of(make_pdf(draw))
+    assert slot.kind == "placeholder" and len(slot.redact) == 3
+    assert slot.bbox.y0 < 95 and slot.bbox.y1 > 120  # spans all three lines
+
+
+def test_placeholder_that_wraps_mid_sentence_does_not_cover_the_next_one() -> None:
+    def draw(page: pymupdf.Page) -> None:
+        page.insert_text(
+            (72, 100), "between [enter official name of Provider on Key\nTerms] and [Customer name]"
+        )
+
+    first, second = slots_of(make_pdf(draw))
+    assert first.bbox.y1 < 105  # stays on the first line, where the long fragment is
+    assert first.bbox.x1 <= second.bbox.x0 or first.bbox.y1 <= second.bbox.y0
+
+
+def test_option_boxes_are_checkboxes_labelled_by_their_option() -> None:
+    def draw(page: pymupdf.Page) -> None:
+        page.insert_text((72, 100), "[  ]")
+        page.insert_text((100, 100), "Fixed fee for the project")
+        page.insert_text((72, 120), "( )")
+        page.insert_text((100, 120), "Time and materials")
+        page.insert_text((72, 140), "[x] Retainer")
+        page.insert_text((72, 160), "(x) any other amount, and (ix) taxes")  # clause numbers
+
+    slots = slots_of(make_pdf(draw))
+    assert [(s.kind, s.anchor) for s in slots] == [
+        ("checkbox", "Fixed fee for the project"),
+        ("checkbox", "Time and materials"),
+        ("checkbox", "Retainer"),
+    ]
+
+
+def test_full_width_rule_is_not_a_blank() -> None:
+    def draw(page: pymupdf.Page) -> None:
+        page.insert_text((72, 100), "Payment period")
+        page.draw_line((54, 110), (558, 110))  # table row separator across the page
+        page.insert_text((72, 130), "Signature:")
+        page.draw_line((130, 131.5), (330, 131.5))
+
+    [slot] = slots_of(make_pdf(draw))
+    assert slot.before == "Signature:"

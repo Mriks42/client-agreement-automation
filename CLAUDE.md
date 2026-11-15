@@ -14,9 +14,14 @@ _Last updated: Sun Nov 15, 2026 (early morning), end of Day 2. Day 2 was planned
   4. `detection/pipeline.analyze` labels them with Claude, or with heuristics if Claude fails.
   5. `detection/mapper` builds field rectangles and checks bounds and overlaps.
   6. Any role with nowhere to sign gets an appended signature page.
-- **Eval:** 10 synthetic fixtures. Three were added on Day 2: drawn rules with captions, label-only blocks with dot leaders and a table of contents, and a fillable PDF form.
-  - **Online (Claude, `claude-opus-5-5`, effort high), all 10 fixtures: 68/68 blanks (100%), signature blocks on 10/10, 0 false positives.** It costs about 4–6¢ and takes about 10 s per agreement (Nov 15, about 45¢ for every run so far). On the two documents with no signature block, Claude also lists the provider as a signer. That's reasonable, and the eval reports it as an extra role, not a failure.
-  - Offline (heuristics only), full set in the production image: 67/68 blanks (98.5%), signature blocks on 10/10, 0 false positives.
+- **Eval:** 11 synthetic fixtures. Four were added on Day 2: drawn rules with captions, label-only blocks with dot leaders and a table of contents, a fillable PDF form, and an order-form template with `[XX]`, option boxes and drafting notes.
+  - **Online (Claude, `claude-opus-5-5`, effort high), all 11 fixtures: 81/81 blanks (100%), signature blocks on 11/11, 0 false positives.** On the two documents with no signature block, Claude also lists the provider as a signer. That's reasonable, and the eval reports it as an extra role, not a failure.
+  - Offline (heuristics only), full set in the production image: 80/81 blanks (98.8%), signature blocks on 11/11, 0 false positives.
+- **Blind test** on a public template it was never tuned on: the Common Paper Professional Services Agreement cover page, 6 pages, DOCX.
+  - It found both signature blocks, each with 5 fields per party, in the right columns, and the parties in the right order (customer, then provider).
+  - The test exposed extractor gaps, now fixed and pinned by tests and the new fixture: `[XX]` was mistaken for a roman numeral; `[ # ]`, `[ ]` / `( )` option boxes and long multi-line instruction placeholders were missed; full-width table rules showed up as candidate blanks.
+  - After the fixes, 152 of 156 candidate blanks became sensible fields.
+- **Cost and latency scale with the number of blanks:** about 5¢ and 10 s for a 1-page agreement, but about 41¢ and **144 s** for that 156-blank template. Time per call is roughly 1 s per blank, so the per-call timeout is now 300 s.
   - The fixtures are cleaner than real agreements. Treat these numbers as a regression floor, not as proof of quality on the MIND agreement.
 - **CI** runs the offline eval in two places: the backend job, which skips the DOCX fixture, and inside the Docker image, which runs the full set.
 
@@ -24,6 +29,8 @@ _Last updated: Sun Nov 15, 2026 (early morning), end of Day 2. Day 2 was planned
 - Before the MIND test: a blind check on one realistic agreement (PDF or DOCX) the pipeline has never seen.
 - Org signup and login.
 - A template upload endpoint that stores the PDF in GridFS and enqueues an `analyze_template` job, which calls `pipeline.analyze`.
+  - The job needs a lease of at least 10 minutes, because the worker's default `LEASE` is 5 minutes and the LLM budget is up to 330 s.
+  - The UI should say analysis usually takes 1–3 minutes.
 - A review editor: page images with fields overlaid, edit, then approve.
 
 **Infrastructure (Day 1, unchanged):**
@@ -38,7 +45,7 @@ _Last updated: Sun Nov 15, 2026 (early morning), end of Day 2. Day 2 was planned
 - **Secrets** live only in the Render dashboard and the owner's private notes. Never in the repo, and never in chat.
 
 **Later reminders:**
-- **Anthropic API key** `kickoff`: Individual org, Default workspace, prepaid with auto-reload off. It expires **Feb 28, 2027**. The balance was about $4.50 on Nov 15. Check it before submitting, and keep at least $2: at $0, detection silently falls back to heuristics. The key is in Render and in `backend/.env` (gitignored).
+- **Anthropic API key** `kickoff`: Individual org, Default workspace, prepaid with auto-reload off. It expires **Feb 28, 2027**. The balance was about $3.75 on Nov 15. Check it before submitting, and keep at least $2: at $0, detection silently falls back to heuristics. The key is in Render and in `backend/.env` (gitignored).
 - The workspace's 750 free Render hours are shared with two other services; suspend those if grading runs into December.
 - Optional, before submitting: rotate the Atlas DB user's password, and update `MONGODB_URI` in Render to match.
 

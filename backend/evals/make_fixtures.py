@@ -633,6 +633,77 @@ def fillable_form() -> dict[str, Any]:
     }
 
 
+def template_with_options() -> dict[str, Any]:
+    """An order-form template like the open-standard ones: [XX] numbers, a multi-line instruction
+    placeholder, drafting notes (not blanks), option checkboxes, [ # ], and full-width table rules
+    (not blanks). Mirrors patterns from a blind test on a public template."""
+    c = Canvas()
+    c.text(72, c.y, "Services Order Form", size=15, bold=True)
+    c.y += 26
+    c.page.insert_text(
+        (72, c.y),
+        'This Order Form [XX] is between Lumen Test Advisory Inc. ("Provider") and\n'
+        '[CLIENT LEGAL NAME] ("Client").',
+        fontsize=10.5,
+    )
+    c.y += 30
+    c.rule(54, c.y, 558, width=0.5)
+    c.text(72, c.y + 18, "Services", bold=True)
+    c.page.insert_text(
+        (200, c.y + 18),
+        "[Describe the services to be performed, including key people,\n"
+        "the overall timeline and milestones.]",
+        fontsize=10.5,
+    )
+    c.page.insert_text(
+        (200, c.y + 50), "[Drafting note: Delete the next row if there is no deposit.]", fontsize=9
+    )
+    c.y += 64
+    c.rule(54, c.y, 558, width=0.5)
+    c.text(72, c.y + 18, "Pricing", bold=True)
+    for i, option in enumerate(("Fixed fee", "Time and materials")):
+        c.text(200, c.y + 18 + i * 18, "[    ]")
+        c.text(228, c.y + 18 + i * 18, option)
+    c.text(200, c.y + 58, "Payment is due within [ # ] days of each invoice.")
+    c.y += 72
+    c.rule(54, c.y, 558, width=0.5)
+    c.y += 24
+    c.para("By signing below, each party agrees to this Order Form.")
+    c.text(72, c.y + 6, "LUMEN TEST ADVISORY INC.", bold=True)
+    c.text(330, c.y + 6, "[CLIENT LEGAL NAME]", bold=True)
+    for i, lab in enumerate(("Signature:", "Name:", "Date:")):
+        y = c.y + 34 + i * 24
+        c.text(72, y, f"{lab} {SHORT}")
+        c.text(330, y, f"{lab} {SHORT}")
+    path = FIXTURES / "template_with_options.pdf"
+    c.save(path)
+    services = (
+        "[Describe the services to be performed, including key people, the overall timeline "
+        "and milestones.]"
+    )
+    fields = [
+        field(1, "[XX]", "text", "sender"),
+        field(1, "[CLIENT LEGAL NAME]", "text", "sender", nth=1),
+        field(1, services, "text", "sender"),
+        field(1, "Fixed fee", "checkbox", "sender"),
+        field(1, "Time and materials", "checkbox", "sender"),
+        field(1, "[ # ]", "text", "sender"),
+        field(1, "[CLIENT LEGAL NAME]", "text", "sender", nth=2),
+    ]
+    rows = [("Signature:", "signature"), ("Name:", "name"), ("Date:", "date_signed")]
+    for party, nth in (("provider", 1), ("client", 2)):
+        fields += [field(1, lab, t, party, nth=nth) for lab, t in rows]
+    return {
+        "description": "Template: [XX], instruction block, drafting note, option boxes, [ # ], "
+        "full-width rules",
+        "roles": {
+            "provider": ["provider", "lumen", "firm", "company"],
+            "client": ["client", "customer"],
+        },
+        "fields": fields,
+    }
+
+
 GENERATORS = [
     two_party_services,
     single_party_engagement,
@@ -644,6 +715,7 @@ GENERATORS = [
     drawn_signature_lines,
     label_gaps_and_leaders,
     fillable_form,
+    template_with_options,
 ]
 
 

@@ -26,8 +26,10 @@ log = logging.getLogger(__name__)
 # for that refusal category, inside the same call.
 FALLBACK_BETA = "server-side-fallback-2026-07-01"
 MAX_TOKENS = 64_000  # thinking + JSON; streamed, so a high ceiling costs nothing unless used
-CALL_TIMEOUT_S = 150.0
-TOTAL_BUDGET_S = 240.0  # stays inside the job lease (worker/queue.py LEASE)
+# Latency grows with the number of slots (about 1 s each at effort high): a public 6-page template
+# with 156 slots took 144 s. A typical ready-to-sign agreement has 20-40 slots.
+CALL_TIMEOUT_S = 300.0
+TOTAL_BUDGET_S = 330.0  # the analyze job's lease must be longer than this (use >= 10 min)
 MAX_REQUEST_BYTES = 30 * 1024 * 1024  # API request cap is 32 MB; leave room for the listing
 LABELS_SCHEMA = transform_schema(Labels.model_json_schema())
 
@@ -78,7 +80,7 @@ class ClaudeLabeller:
         )
         attempts = 1
         remaining = TOTAL_BUDGET_S - (time.monotonic() - start)
-        if problems and remaining > 30:
+        if problems and remaining > 60:
             log.warning("llm labels failed validation; retrying", extra={"problems": problems[:5]})
             attempts = 2
             try:
