@@ -15,7 +15,8 @@ _Last updated: Sun Nov 15, 2026 (afternoon), end of Day 4. Day 4 finished a day 
   5. UI: **Download signed agreement** on the file page and on the signer's "completed" page (by token). The banner already switches on `finalized_at`. If the job dies, show it on the file page with a **Try again** button (re-enqueue it).
 - **Exit criterion:** on the live app, a fully signed file produces the signed PDF with a certificate page, every party receives it by email, and the file page downloads it.
 - **Heads-up for deploying it:** the live DB already holds completed files whose `finalize_file` jobs are waiting. They run as soon as the handler deploys, and that's the first real test. One was signed end to end by the owner on Nov 15, with real emails (client at an outside Gmail, firm at the sending inbox), so both should receive the signed PDF. The files from the automated live runs were sent by `e2e+…@example.com` accounts, so their copies to the sender will bounce into the sending inbox ("Address not found"). That's expected.
-- **Then, Monday evening: the blind-test round** (plan below).
+- **Credit:** the Anthropic balance is about $2.05, at the $2 floor, and the owner will top up $5 later. Day 5 itself needs no credit (no LLM calls), so verify it by reusing an already-approved agreement on the live app. Don't upload new agreements live until the top-up is confirmed.
+- **Then, Monday evening: the blind-test round** (plan below). Start it only after the top-up.
 
 **Blind-test round (Mon evening, about 2.5 h and $2–3 of credit).** The grade is one live run on an agreement we've never seen, so measure the whole path on six more unseen agreements, judged on the first run, and fix only what would break Anthony's path.
 - **Before starting:** the owner tops up $5 (balance then about $7). Day 5 should be live, so every run ends in a signed PDF with its certificate.
