@@ -14,12 +14,14 @@ from fastapi import FastAPI, HTTPException, Request, Response
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
-from app.api import auth, health, ops
+from app.api import auth, health, ops, templates
 from app.config import Settings, get_settings
 from app.db import connect
 from app.logging_setup import configure_logging, request_id_var
 from app.services.accounts import LoginThrottle
+from app.services.detection.llm import ClaudeLabeller
 from app.services.email import EmailSender, build_email_sender
+from app.services.storage import BytesLRU
 from app.worker.handlers import build_registry
 from app.worker.queue import Worker
 
@@ -37,11 +39,14 @@ def create_app(settings: Settings | None = None, email: EmailSender | None = Non
         app.state.email = email or build_email_sender(settings)
         app.state.email_check_cache = {}
         app.state.login_throttle = LoginThrottle()
+        app.state.page_cache = BytesLRU(24 * 1024 * 1024)
+        labeller = ClaudeLabeller.from_settings(settings)
         # What job handlers get in ctx.services. Tests build a Worker from this same dict.
         app.state.services = {
             "email": app.state.email,
             "blobs": app.state.db.blobs,
             "settings": settings,
+            "labeller": labeller,
         }
         app.state.worker = None
         worker_task: asyncio.Task[None] | None = None
@@ -57,6 +62,9 @@ def create_app(settings: Settings | None = None, email: EmailSender | None = Non
                 app.state.worker.stop()
                 with suppress(Exception):
                     await asyncio.wait_for(worker_task, timeout=15)
+            if labeller is not None:
+                with suppress(Exception):
+                    await labeller.client.close()
             await app.state.db.close()
 
     app = FastAPI(
@@ -117,6 +125,7 @@ def create_app(settings: Settings | None = None, email: EmailSender | None = Non
     app.include_router(health.router)
     app.include_router(ops.router)
     app.include_router(auth.router)
+    app.include_router(templates.router)
 
     _mount_spa(app, settings)
     return app

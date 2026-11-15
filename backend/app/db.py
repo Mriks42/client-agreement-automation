@@ -51,4 +51,5 @@ async def ensure_indexes(database: Database) -> None:
     await db.worker_heartbeats.create_index("updated_at", expireAfterSeconds=3600)
     await db.users.create_index("email", unique=True)
     await db.sessions.create_index("expires_at", expireAfterSeconds=0)
+    await db.templates.create_index([("org_id", 1), ("updated_at", -1)])
     log.info("indexes ensured")
