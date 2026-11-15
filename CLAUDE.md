@@ -48,6 +48,8 @@ _Last updated: Sun Nov 15, 2026 (evening), end of Day 5. Day 5 also finished a d
 **Remaining schedule:**
 - **Mon:** the blind-test round (once the top-up is confirmed) and its blocker fixes, then the API and webhooks.
 - **Tue morning:** remaining blind-test fixes and polish. Run `scripts.live_check` after the final deploy.
+- **Polish list** (Tuesday morning, before the 12:00 freeze):
+  - Remove the "System status" box from the logged-out landing page (`frontend/src/pages/HomePage.tsx`). It's a developer check that makes the customer-facing page look unfinished ("Llm ok" and the full version hash), and "Llm ok" only means a key is configured: with no credit left it would still say ok while detection quietly uses heuristics. Keep `/api/health` itself for UptimeRobot and Render.
 - **Hard stops:** feature freeze Tue 12:00, final deploy verified by 17:00, last commit by 20:00 MST.
 
 **Day 4 is done, and verified on the live app.**
