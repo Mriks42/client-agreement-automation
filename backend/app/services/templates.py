@@ -25,15 +25,18 @@ from gridfs import AsyncGridFSBucket
 from pymongo.asynchronous.database import AsyncDatabase
 
 from app.config import Settings
-from app.domain.fields import SENDER, SIGNER_ONLY_TYPES, Field, Rect, Role
+from app.domain.fields import SENDER, SIGNER_ONLY_TYPES, Field, Rect, Role, sender_inputs
 from app.repo import Tenant
 from app.services import ingest, pdf_engine, storage
 from app.services.accounts import CurrentUser
 from app.services.detection import heuristics, pipeline
 from app.services.detection.schema import slug
+from app.services.errors import Conflict, Invalid, NotFound
 from app.worker.queue import enqueue, utcnow
 
 log = logging.getLogger(__name__)
+
+__all__ = ["Conflict", "Invalid", "NotFound"]
 
 ANALYZE_TEMPLATE = "analyze_template"
 EDITABLE = ("needs_review", "active")
@@ -43,20 +46,6 @@ MIN_FIELD_SIZE = 4.0  # pt
 _ROLE_KEY_RE = re.compile(r"^[a-z][a-z0-9_]{0,39}$")
 _FIELD_ID_RE = re.compile(r"^[A-Za-z0-9_\-]{1,80}$")
 _RESERVED_ROLE_KEYS = frozenset({SENDER, "none"})
-
-
-class NotFound(Exception):
-    pass
-
-
-class Conflict(Exception):
-    """The template is not in a state that allows this, or changed since the caller read it."""
-
-
-class Invalid(Exception):
-    def __init__(self, problems: list[str]) -> None:
-        super().__init__("; ".join(problems))
-        self.problems = problems
 
 
 # ---- upload ------------------------------------------------------------------------------------
@@ -514,5 +503,6 @@ def detail(t: dict[str, Any]) -> dict[str, Any]:
         "appended_signature_page": bool(detection.get("appended_signature_page")),
         "error": t.get("analysis_error"),
         "problems": approval_problems(roles, fields) if t["status"] == "needs_review" else [],
+        "sender_inputs": sender_inputs(t.get("fields", [])),
         "analysis_started_at": t.get("analysis_started_at"),
     }

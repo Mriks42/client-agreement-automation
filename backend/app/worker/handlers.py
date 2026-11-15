@@ -6,25 +6,14 @@ from typing import Any
 
 from bson import ObjectId
 
-from app.services import templates
+from app.services import signing, templates
 from app.services.email import Attachment, EmailPermanentError, EmailSender, OutgoingEmail
-from app.worker.queue import JobContext, JobType, enqueue
+from app.services.email.outbox import SEND_EMAIL, enqueue_email
+from app.worker.queue import JobContext, JobType
 
 log = logging.getLogger(__name__)
 
-SEND_EMAIL = "send_email"
-
-
-async def enqueue_email(
-    db: Any,
-    email: dict[str, Any],
-    *,
-    dedupe_key: str | None = None,
-    org_id: str | None = None,
-) -> ObjectId:
-    """email: OutgoingEmail fields; attachments as [{blob_id, filename, mime_type}] (GridFS ids),
-    so large PDFs never sit inside job documents."""
-    return await enqueue(db, SEND_EMAIL, email, dedupe_key=dedupe_key, org_id=org_id)
+__all__ = ["SEND_EMAIL", "build_registry", "enqueue_email"]
 
 
 async def handle_send_email(ctx: JobContext, payload: dict[str, Any]) -> None:
@@ -91,6 +80,13 @@ def build_registry() -> dict[str, JobType]:
             on_dead=on_email_dead,
             permanent_errors=(EmailPermanentError,),
         ),
+        signing.SIGNING_EMAIL: JobType(
+            handler=signing.handle_signing_email,
+            max_attempts=6,
+            on_dead=signing.on_signing_email_dead,
+            permanent_errors=(EmailPermanentError,),
+        ),
+        signing.EXPIRE_FILE: JobType(handler=signing.handle_expire_file),
         templates.ANALYZE_TEMPLATE: JobType(
             handler=handle_analyze_template,
             # Detection already falls back to heuristics on any LLM problem, so a failure here

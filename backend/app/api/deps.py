@@ -7,6 +7,7 @@ from fastapi import Depends, HTTPException, Request
 from app.repo import Tenant
 from app.services import accounts
 from app.services.accounts import CurrentUser
+from app.services.events import ClientInfo
 
 
 async def require_user(request: Request) -> CurrentUser:
@@ -25,3 +26,13 @@ def tenant_for(request: Request, user: UserDep) -> Tenant:
 
 
 TenantDep = Annotated[Tenant, Depends(tenant_for)]
+
+
+def client_info(request: Request) -> ClientInfo:
+    """The signer's address for the audit trail. uvicorn runs with --proxy-headers, so
+    request.client is the address Render's proxy saw; the raw X-Forwarded-For is kept too."""
+    return ClientInfo(
+        ip=request.client.host if request.client else None,
+        user_agent=request.headers.get("user-agent"),
+        forwarded_for=request.headers.get("x-forwarded-for"),
+    )

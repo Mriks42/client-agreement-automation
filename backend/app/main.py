@@ -3,18 +3,20 @@ durable job worker (DECISIONS.md D8, D9)."""
 
 import asyncio
 import logging
+import re
 import time
 import uuid
 from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager, suppress
 from pathlib import Path
+from typing import Any
 from urllib.parse import urlsplit
 
 from fastapi import FastAPI, HTTPException, Request, Response
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
-from app.api import auth, health, ops, templates
+from app.api import auth, files, health, ops, signing, templates
 from app.config import Settings, get_settings
 from app.db import connect
 from app.logging_setup import configure_logging, request_id_var
@@ -108,7 +110,7 @@ def create_app(settings: Settings | None = None, email: EmailSender | None = Non
         response.headers.setdefault("referrer-policy", "same-origin")
         if request.url.path.startswith("/assets/"):
             response.headers["cache-control"] = "public, max-age=31536000, immutable"
-        path = request.url.path
+        path = redact_path(request.url.path)
         if path not in ("/healthz",):
             log.info(
                 "request",
@@ -126,12 +128,20 @@ def create_app(settings: Settings | None = None, email: EmailSender | None = Non
     app.include_router(ops.router)
     app.include_router(auth.router)
     app.include_router(templates.router)
+    app.include_router(files.router)
+    app.include_router(signing.router)
 
     _mount_spa(app, settings)
     return app
 
 
 _SAFE_METHODS = frozenset({"GET", "HEAD", "OPTIONS"})
+_TOKEN_PATH = re.compile(r"^(/(?:api/)?sign/)[^/]+")
+
+
+def redact_path(path: str) -> str:
+    """Signing links carry the signer's credential in the path; never log it."""
+    return _TOKEN_PATH.sub(r"\1<token>", path)
 
 
 def _cross_site(request: Request, settings: Settings) -> bool:
@@ -177,4 +187,13 @@ def _init_sentry(settings: Settings) -> None:
         release=settings.git_sha,
         send_default_pii=False,
         traces_sample_rate=0.0,
+        before_send=_scrub_event,
     )
+
+
+def _scrub_event(event: Any, hint: Any) -> Any:
+    request = event.get("request") or {}
+    if isinstance(request.get("url"), str):
+        parts = urlsplit(request["url"])
+        request["url"] = parts._replace(path=redact_path(parts.path)).geturl()
+    return event

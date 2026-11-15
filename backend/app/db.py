@@ -52,4 +52,10 @@ async def ensure_indexes(database: Database) -> None:
     await db.users.create_index("email", unique=True)
     await db.sessions.create_index("expires_at", expireAfterSeconds=0)
     await db.templates.create_index([("org_id", 1), ("updated_at", -1)])
+    await db.files.create_index([("org_id", 1), ("updated_at", -1)])
+    await db.files.create_index("recipients.token_hashes")
+    await db.events.create_index([("org_id", 1), ("file_id", 1), ("at", 1)])
+    await db.events.create_index(
+        "key", unique=True, partialFilterExpression={"key": {"$type": "string"}}
+    )
     log.info("indexes ensured")
