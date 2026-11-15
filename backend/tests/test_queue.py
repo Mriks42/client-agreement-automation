@@ -182,3 +182,46 @@ async def test_periodic_task_runs_once_per_interval(db: Any) -> None:
     await w._run_periodic()
     await w._run_periodic()
     assert runs == 1
+
+
+async def test_job_type_can_hold_a_longer_lease(db: Any) -> None:
+    async def handler(ctx: JobContext, payload: dict[str, Any]) -> None:
+        pass
+
+    w = make_worker(db, slow=JobType(handler, lease=timedelta(minutes=10)), quick=JobType(handler))
+    await enqueue(db, "slow", {})
+    job = await w.claim()
+    assert job is not None
+    stored = await db.jobs.find_one({"_id": job["_id"]})
+    assert stored["locked_until"] - stored["updated_at"] >= timedelta(minutes=9, seconds=59)
+    await enqueue(db, "quick", {})
+    quick = await w.claim()
+    assert quick is not None
+    assert quick["locked_until"] - quick["updated_at"] <= timedelta(minutes=5)
+
+
+async def test_a_handler_cannot_outlive_its_lease(db: Any) -> None:
+    import asyncio
+
+    async def handler(ctx: JobContext, payload: dict[str, Any]) -> None:
+        await asyncio.sleep(5)
+
+    # 31 s lease minus the 30 s margin: cancelled after 1 s.
+    w = make_worker(db, hang=JobType(handler, max_attempts=1, lease=timedelta(seconds=31)))
+    job_id = await enqueue(db, "hang", {})
+    await w.drain()
+    job = await db.jobs.find_one({"_id": job_id})
+    assert job["status"] == "dead" and "longer than" in job["last_error"]
+
+
+async def test_shutdown_hands_interrupted_jobs_back(db: Any) -> None:
+    async def handler(ctx: JobContext, payload: dict[str, Any]) -> None:
+        pass
+
+    w = make_worker(db, work=JobType(handler))
+    job_id = await enqueue(db, "work", {})
+    assert await w.claim() is not None
+    await w.release_leases()
+    job = await db.jobs.find_one({"_id": job_id})
+    assert job["status"] == "pending" and job["attempts"] == 0 and job["locked_by"] is None
+    assert await make_worker(db, work=JobType(handler)).drain() == 1

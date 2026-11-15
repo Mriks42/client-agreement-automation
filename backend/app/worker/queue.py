@@ -26,6 +26,7 @@ from pymongo.errors import DuplicateKeyError
 log = logging.getLogger(__name__)
 
 LEASE = timedelta(minutes=5)
+LEASE_MARGIN_S = 30
 BACKOFF_BASE_S = 20
 BACKOFF_CAP_S = 3600
 
@@ -45,6 +46,13 @@ class JobType:
     on_dead: DeadHook | None = None
     # Exceptions that mean "don't retry" in addition to PermanentJobError.
     permanent_errors: tuple[type[BaseException], ...] = ()
+    # How long a claimed job is reserved. The handler is cancelled shortly before it runs out,
+    # so a job never outlives its lease and runs twice at once.
+    lease: timedelta = LEASE
+
+    @property
+    def timeout_s(self) -> float:
+        return max(1.0, self.lease.total_seconds() - LEASE_MARGIN_S)
 
 
 @dataclass
@@ -177,7 +185,7 @@ class Worker:
     # ---- main loop ------------------------------------------------------------------------
     async def claim(self) -> dict[str, Any] | None:
         now = utcnow()
-        return await self.db.jobs.find_one_and_update(
+        job: dict[str, Any] | None = await self.db.jobs.find_one_and_update(
             {
                 "type": {"$in": list(self.registry)},
                 "$or": [
@@ -197,6 +205,16 @@ class Worker:
             sort=[("run_at", 1)],
             return_document=ReturnDocument.AFTER,
         )
+        if job is None:
+            return None
+        lease = self.registry[job["type"]].lease
+        if lease != LEASE:
+            job["locked_until"] = now + lease
+            await self.db.jobs.update_one(
+                {"_id": job["_id"], "locked_by": self.worker_id},
+                {"$set": {"locked_until": job["locked_until"]}},
+            )
+        return job
 
     async def run_one(self, job: dict[str, Any]) -> None:
         jt = self.registry[job["type"]]
@@ -213,8 +231,11 @@ class Worker:
                 await jt.on_dead(ctx, job["payload"], error)
             return
         try:
-            await jt.handler(ctx, job["payload"])
+            async with asyncio.timeout(jt.timeout_s):
+                await jt.handler(ctx, job["payload"])
         except Exception as exc:
+            if isinstance(exc, TimeoutError):
+                exc = TimeoutError(f"the job took longer than {jt.timeout_s:.0f}s")
             error = f"{type(exc).__name__}: {exc}"[:2000]
             permanent = isinstance(exc, (PermanentJobError, *jt.permanent_errors))
             if permanent or job["attempts"] >= max_attempts:
@@ -281,8 +302,32 @@ class Worker:
                 log.exception("worker loop error; backing off")
                 await asyncio.sleep(5)
         if self._inflight:
-            await asyncio.wait(self._inflight, timeout=10)
+            _, pending = await asyncio.wait(self._inflight, timeout=10)
+            for task in pending:
+                task.cancel()
+            if pending:
+                await asyncio.wait(pending, timeout=5)
+            await self.release_leases()
         log.info("worker stopped")
+
+    async def release_leases(self) -> None:
+        """Hand back jobs interrupted by shutdown (e.g. a deploy), so the next instance picks
+        them up now instead of after their lease. The interrupted attempt doesn't count."""
+        result = await self.db.jobs.update_many(
+            {"locked_by": self.worker_id, "status": "running"},
+            {
+                "$set": {
+                    "status": "pending",
+                    "run_at": utcnow(),
+                    "locked_until": None,
+                    "locked_by": None,
+                    "updated_at": utcnow(),
+                },
+                "$inc": {"attempts": -1},
+            },
+        )
+        if result.modified_count:
+            log.warning("released interrupted jobs", extra={"count": result.modified_count})
 
     async def _guarded(self, job: dict[str, Any]) -> None:
         try:
