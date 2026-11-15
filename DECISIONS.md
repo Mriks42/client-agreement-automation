@@ -59,10 +59,15 @@ The brief says to make a reasonable decision when something is unclear and to wr
   - (b) can be silently wrong, and a contract with a missing signature field is worse than useless.
   - (c) puts a human check where it matters, and that check happens once per agreement, not once per file.
 - **How detection works:**
-  1. **Normalize.** Reject encrypted PDFs. Convert DOCX to PDF.
-  2. **Extract.** Pull every text line and every candidate blank from the PDF, each with its real coordinates and a stable ID. Candidate blanks are underscore runs, `[Bracketed]` or `{{curly}}` placeholders, and lines such as "Signature:" or "By:".
+  1. **Normalize.** Reject password-protected PDFs. Convert DOCX to PDF. Bake page rotation into the content, so stored coordinates match what people see. Strip JavaScript and embedded files.
+  2. **Extract.** Pull every text line and every candidate blank from the PDF, each with its real coordinates and a stable ID. Candidate blanks are:
+     - underscore runs and dotted blanks (but not table-of-contents leaders);
+     - drawn lines, which is how Word exports underlined tabs (but not text underlines or table borders), with any caption printed below them;
+     - `[Bracketed]`, `{{curly}}`, `<<angle>>` and `«guillemet»` placeholders, including ones that wrap onto the next line;
+     - empty space after a label such as "Signature:" or "By:";
+     - checkbox glyphs, and the document's own PDF form fields.
   3. **Classify.** Claude reads the page images and the ID'd lines and blanks. It returns the signing parties and, for each blank, what the blank is and who fills it (the firm per file, or a specific signer). **The model never outputs coordinates.** It labels positions we measured, so it cannot invent a field that isn't on the page.
-  4. **Validate.** Check the output with a Pydantic schema and retry once with the errors fed back. Then run sanity checks: fields sit inside the page, fields don't overlap, and every signer role has a signature field.
+  4. **Validate.** Check the output with a Pydantic schema and against the slots we extracted, and retry once with the errors fed back. Slots that are still unlabelled get the heuristic label. Then run sanity checks: fields sit inside the page, fields don't overlap, and every signer role has a signature field.
   5. **Fall back.**
      - LLM failure, timeout, or refusal → keyword heuristics.
      - A role with no signature field → an appended signature page for that role.
@@ -236,7 +241,14 @@ The brief says to make a reasonable decision when something is unclear and to wr
 12. **Per-company branding:** logo, colour, and sender name. Clients should see the firm's name, not mine, and the client wants to resell this.
 13. **Verify page.** Anyone can check that a PDF is the unaltered signed original (D7).
 14. **Template versioning.** Each file stays pinned to the exact version it was sent with, so editing the agreement never changes what someone already signed.
-15. **Detection eval harness.** Synthetic agreements covering two parties, one party, side-by-side signature blocks, bracket placeholders, a DOCX, initials on every page, no signature block, and a scan. It turns "works on agreements it has never seen" from a hope into a measured number.
+15. **Detection eval harness.** Synthetic agreements covering:
+    - two parties, one party, and side-by-side signature blocks;
+    - bracket placeholders, a DOCX, and initials on every page;
+    - no signature block, and a scan;
+    - drawn signature lines with captions, and label-only blocks with dot leaders;
+    - a fillable PDF form.
+
+    It turns "works on agreements it has never seen" from a hope into a measured number. CI runs it offline on every push, inside the production image so the DOCX fixture is included.
 
 **If time allows:** team invites, bulk file creation from CSV, in-app countersigning for the logged-in user, and automated browser end-to-end tests.
 
@@ -284,3 +296,4 @@ The brief says to make a reasonable decision when something is unclear and to wr
 | 2026-11-11 | Pinned PyMuPDF to 1.x. Version 2.x hard-requires layout/LLM add-ons (onnxruntime, numpy, networkx), which added about 250 MB to the image for nothing we use. The image dropped from 2.3 GB to 1.0 GB. |
 | 2026-11-11 | CI runs MongoDB 7.0 while production runs Atlas 8.0. GitHub's runners moved to Linux 6.19+ kernels, and MongoDB 8.0+ refuses to start on them (an upstream allocator issue, SERVER-121912, still open as SERVER-136848). We use no 8.0-only features, and local dev and Atlas still exercise 8.0. Revisit when the upstream fix ships. |
 | 2026-11-11 | First deploy is live, and email from production is verified, so Day 1 is done. The delivery test landed in spam, so I added a copy-link fallback and a check-spam prompt to the graded path (D11). |
+| 2026-11-14 | The document pipeline is built (D2), so Day 2 is done, two days late. Extraction covers more kinds of blank than planned: drawn lines, dotted blanks, label gaps, wrapped placeholders and PDF form fields. Each is common in Word and PDF exports, and missing one means a missing field. I added a `date` field type for sender-filled dates. The eval grew to 10 fixtures, and the heuristics alone score 98.5% on them offline. |
