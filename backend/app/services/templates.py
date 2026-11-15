@@ -146,15 +146,37 @@ async def _enqueue_analysis(tenant: Tenant, template_id: ObjectId, attempt: int)
 
 
 # ---- analysis job ------------------------------------------------------------------------------
-_SLOT_REF = re.compile(r"(?:\bslots?\s+)?\bp(\d+)-s\d+\b", re.IGNORECASE)
-_LINE_REF = re.compile(r"(?:\blines?\s+)?\bp(\d+)-l\d+\b", re.IGNORECASE)
+_ID = r"p\d+-[sl]\d+"
+# A run of ids, e.g. "p2-s3, p2-s5 and p3-s1" or "p2-s15/16", with an optional noun before it.
+_ID_RUN = re.compile(
+    rf"(?:\b(?P<noun>slots?|blanks?|fields?|checkbox(?:es)?|lines?)\s+)?\b{_ID}\b"
+    rf"(?:\s*(?:,\s*(?:and\s+|or\s+)?|&|\band\b|\bor\b)\s*{_ID}\b|\s*/\s*(?:{_ID}|\d+)\b)*",
+    re.IGNORECASE,
+)
+_ID_PARTS = re.compile(r"\bp(\d+)-([sl])\d+", re.IGNORECASE)
+
+
+def _describe_ids(m: re.Match[str]) -> str:
+    run = m.group(0)
+    refs = _ID_PARTS.findall(run)
+    count = len(refs) + len(re.findall(r"/\s*\d+\b", run))  # "p2-s15/16" is two blanks
+    pages = sorted({int(page) for page, _ in refs})
+    where = (
+        f"page {pages[0]}"
+        if len(pages) == 1
+        else "pages " + ", ".join(map(str, pages[:-1])) + f" and {pages[-1]}"
+    )
+    noun = (m.group("noun") or "").lower()
+    if noun and not noun.startswith("slot"):
+        return f"{m.group('noun')} on {where}"  # keep the model's word: "Checkboxes on page 2"
+    kind = "line" if all(k.lower() == "l" for _, k in refs) else "blank"
+    return f"a {kind} on {where}" if count == 1 else f"{kind}s on {where}"
 
 
 def readable_note(text: str) -> str:
     """The model sometimes cites our internal ids ("p1-s4") in its notes to the reviewer.
     Say where on the page instead."""
-    text = _SLOT_REF.sub(lambda m: f"a blank on page {m.group(1)}", text)
-    text = _LINE_REF.sub(lambda m: f"a line on page {m.group(1)}", text)
+    text = _ID_RUN.sub(_describe_ids, text)
     return text[:1].upper() + text[1:]
 
 

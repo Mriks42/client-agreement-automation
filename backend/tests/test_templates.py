@@ -298,6 +298,22 @@ def test_notes_never_show_internal_ids() -> None:
         == "A blank on page 1 was treated as a decorative separator line."
     )
     assert svc.readable_note("Slots p2-s10 and p2-s11 look optional; see p3-l7.") == (
-        "A blank on page 2 and a blank on page 2 look optional; see a line on page 3."
+        "Blanks on page 2 look optional; see a line on page 3."
+    )
+    # Seen on the live app with the Common Paper PSA:
+    assert (
+        svc.readable_note(
+            "Checkboxes p2-s3, p2-s5, p3-s1 and p3-s4 appear pre-ticked ([ x ]) in the template."
+        )
+        == "Checkboxes on pages 2 and 3 appear pre-ticked ([ x ]) in the template."
+    )
+    assert (
+        svc.readable_note(
+            "Top rules above the Signature rows (p2-s15/16, p6-s3/4) were treated as decorative."
+        )
+        == "Top rules above the Signature rows (blanks on pages 2 and 6) were treated as decorative."
+    )
+    assert svc.readable_note("Only Customer Covered Claims (p3-s7) is a slot.") == (
+        "Only Customer Covered Claims (a blank on page 3) is a slot."
     )
     assert svc.readable_note("Check the fee clause.") == "Check the fee clause."
