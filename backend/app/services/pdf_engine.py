@@ -817,7 +817,7 @@ def _write(page: pymupdf.Page, s: Stamp) -> None:
         page.draw_line(a.tr, a.bl, color=_INK, width=1.2)
         return
     if s.kind == "signature" and s.image:
-        page.insert_image(r, stream=s.image, keep_proportion=True)
+        page.insert_image(_bottom_left(r, s.image), stream=s.image, keep_proportion=True)
         return
     text = s.value.strip()
     if not text:
@@ -838,6 +838,19 @@ def _write(page: pymupdf.Page, s: Stamp) -> None:
         size = max(4.0, size * (r.width - 3) / width)
     baseline = r.y1 - max(1.5, r.height * 0.18)
     page.insert_text((r.x0 + 1.5, baseline), text, fontsize=size, fontname=font, color=color)
+
+
+def _bottom_left(r: pymupdf.Rect, png: bytes) -> pymupdf.Rect:
+    """Where a drawn signature goes: as large as fits, sitting on the line at the left, like ink
+    (PyMuPDF would centre it in the box). Reads the size from the PNG header."""
+    if len(png) < 24 or png[12:16] != b"IHDR":
+        return r
+    iw, ih = int.from_bytes(png[16:20], "big"), int.from_bytes(png[20:24], "big")
+    if iw <= 0 or ih <= 0:
+        return r
+    scale = min((r.width - 1.5) / iw, r.height / ih)
+    x0 = r.x0 + 1.5
+    return pymupdf.Rect(x0, r.y1 - ih * scale, min(r.x1, x0 + iw * scale), r.y1)
 
 
 def draw_fields(
