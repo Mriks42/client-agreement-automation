@@ -48,7 +48,10 @@ SENDER_VALUES = [
     ),
     (r"(company|legal|official|client|customer|party|entity).*name|name of", "Acme Test Co"),
     (r"\bname\b|dear", "Jane Client"),
-    (r"fee|price|amount|rate|cost|budget|retainer|\$|dollar|limit", "$5,000"),
+    (r"\bdays?\b|weeks?|months?|period of|length of time", "30"),
+    (r"hourly|per hour|\brate\b", "$250"),
+    (r"cents|percent|%", "10"),
+    (r"fee|price|amount|cost|budget|retainer|deposit|\$|dollar|limit", "$5,000"),
     (r"law|state|country|jurisdiction|court|county", "Arizona"),
     (r"number|multiplier|#|\bno\b|count|percent", "3"),
     (r"payment (period|terms)|invoice", "30 days from receipt of invoice"),
@@ -79,12 +82,12 @@ def signer_values(f: Field, role: Role) -> str:
         return date.today().strftime("%B %-d, %Y")
     if f.type in ("name", "signature"):
         return name
-    hay = f"{f.key} {f.label}".lower()
+    hay = f"{f.key} {f.label}".lower().replace("_", " ")
     if "title" in hay:
         return "Director"
-    if "address" in hay or "notice" in hay:
-        return "100 Example Street, Testville, AZ 85001"
-    return "Sample value"
+    if re.search(r"e-?mail", hay):
+        return f"{name.split()[0].lower()}@example.com"
+    return fake_sender_value(f)
 
 
 def to_box(r: Rect) -> Box:

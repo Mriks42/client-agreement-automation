@@ -22,7 +22,8 @@ _DATE = re.compile(r"\bdated?\b", re.I)
 _CONSENT = re.compile(r"\b(i|we)\s+(accept|agree|acknowledge|consent|confirm)", re.I)
 _LABEL_LINE = re.compile(
     r"^\s*(?:[A-Za-z'\u2019]+\s){0,3}"
-    r"(signature|signed|by|name|printed name|print name|title|position|date|dated|initials?)\s*:",
+    r"(signature|signed|by|name|printed name|print name|title|position|date|dated|initials?"
+    r"|company|organi[sz]ation|entity|e-?mail|address|mail|phone|telephone|mobile|fax)\s*:",
     re.I,
 )
 _DEFINED = re.compile(

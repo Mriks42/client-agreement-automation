@@ -230,7 +230,8 @@ _CHECKBOX_CHARS = frozenset("☐□❑❒▢☑☒")
 _LABEL_RE = re.compile(
     r"(?:[A-Za-z'\u2019]+\s){0,3}"
     r"(signature|signed|sign here|by|name|printed name|print name|title|position|date|dated"
-    r"|initials?)\s*:",
+    r"|initials?|company|organi[sz]ation|entity|e-?mail|address|mail|phone|telephone|mobile"
+    r"|fax)\s*:",
     re.I,
 )
 _TOC_TAIL_RE = re.compile(r"^\s*\d+\s*$")

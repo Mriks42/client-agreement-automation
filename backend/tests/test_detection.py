@@ -263,3 +263,45 @@ async def test_party_that_already_signed_gets_no_signature_page() -> None:
     result = await analyze(fixture("single_party_engagement.pdf"), labeller=None)
     assert not result.appended_signature_page
     assert [r.key for r in result.roles] == ["client"]
+
+
+def test_instruction_next_to_a_blank_is_removed_with_its_value() -> None:
+    import pymupdf
+
+    from app.services.detection import mapper
+
+    doc = pymupdf.open()
+    doc.new_page().insert_text(
+        (72, 100), "Initial deposit of $____________ [PROVIDE AMOUNT] by Friday."
+    )
+    pdf = doc.tobytes()
+    ex = pdf_engine.extract(pdf)
+    blank = next(s for s in ex.slots if s.kind == "underscore")
+    note = next(s for s in ex.slots if s.kind == "placeholder")
+    labels = Labels(
+        parties=[Party(key="client", name="Client", kind="client", signs_here=True)],
+        signing_order=["client"],
+        slots=[
+            SlotLabel(
+                slot_id=blank.id,
+                type="text",
+                filled_by="sender",
+                key="deposit",
+                label="Deposit",
+                required=True,
+            ),
+            SlotLabel(
+                slot_id=note.id,
+                type="not_a_field",
+                filled_by="none",
+                key="none",
+                label="Instruction",
+                required=False,
+            ),
+        ],
+        warnings=[],
+    )
+    proposal = mapper.build(ex, labels, source="ai")
+    [field] = proposal.fields
+    assert field.slot_id == blank.id and len(field.redact) == 1
+    assert field.redact[0].x0 == pytest.approx(note.bbox.x0)

@@ -62,6 +62,7 @@ def build(
                 redact=redact,
             )
         )
+    _remove_instructions(fields, labels, slots)
     _dedupe_keys(fields)
     warnings += _resolve_overlaps(fields)
     signed = {f.filled_by for f in fields if f.type == "signature"}
@@ -150,6 +151,25 @@ def _rect(slot: Slot, ftype: FieldType, page: PageText) -> tuple[Rect, list[Rect
     if ftype == "signature" and x1 - x0 < _MIN_SIGNATURE_WIDTH:
         x1 = x0 + _MIN_SIGNATURE_WIDTH
     return _clip(Rect(x0=x0, y0=top, x1=x1, y1=bottom), page), []
+
+
+def _remove_instructions(fields: list[Field], labels: Labels, slots: dict[str, Slot]) -> None:
+    """A bracketed instruction right next to a blank ("$____ [PROVIDE AMOUNT]") is not a field
+    itself, but it must not survive into the signed copy: remove it with the blank's value."""
+    by_slot = {f.slot_id: f for f in fields if f.slot_id}
+    for lab in labels.slots:
+        slot = slots[lab.slot_id]
+        if lab.type != "not_a_field" or slot.kind != "placeholder":
+            continue
+        for other_id, f in by_slot.items():
+            other = slots[other_id]
+            if other.page != slot.page or other.kind == "placeholder":
+                continue
+            same_row = abs(other.baseline - slot.baseline) <= 3
+            gap = max(other.bbox.x0 - slot.bbox.x1, slot.bbox.x0 - other.bbox.x1)
+            if same_row and gap <= 40:
+                f.redact = [*f.redact, *(_to_rect(r) for r in slot.redact)]
+                break
 
 
 def _clip(r: Rect, page: PageText) -> Rect:

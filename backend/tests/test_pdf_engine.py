@@ -291,3 +291,16 @@ def test_stamp_replaces_placeholder_text_and_flattens_values() -> None:
         assert "[CLIENT NAME]" not in text
         assert "Acme Test Co" in text and "Jane Client" in text
         assert len(doc[0].get_drawings()) >= 3  # the signature line survives, plus the tick
+
+
+def test_party_detail_labels_with_empty_space_are_blanks() -> None:
+    def draw(page: pymupdf.Page) -> None:
+        page.insert_text((72, 100), "Company:")
+        page.insert_text((72, 120), "Email:")
+        page.insert_text((72, 140), "Notice Address (choose one or both):")  # a heading
+
+    slots = slots_of(make_pdf(draw))
+    assert [(s.kind, s.before) for s in slots] == [
+        ("label_gap", "Company:"),
+        ("label_gap", "Email:"),
+    ]

@@ -21,6 +21,11 @@ _Last updated: Sun Nov 15, 2026 (early morning), end of Day 2. Day 2 was planned
   - It found both signature blocks, each with 5 fields per party, in the right columns, and the parties in the right order (customer, then provider).
   - The test exposed extractor gaps, now fixed and pinned by tests and the new fixture: `[XX]` was mistaken for a roman numeral; `[ # ]`, `[ ]` / `( )` option boxes and long multi-line instruction placeholders were missed; full-width table rules showed up as candidate blanks.
   - After the fixes, 152 of 156 candidate blanks became sensible fields.
+- **Blind tests on two more unseen public documents**, judged on the first run before any fixes:
+  - A State Bar of California sample law-firm fee agreement (6-page PDF): every blank found. Its unusual signature page (signature line above a "CLIENT" caption, "DATED:" lines in the opposite column, firm signs "By:") came out entirely right. 31 s, about 21¢.
+  - The Bonterms PSA cover page (1-page DOCX): both signature blocks right. It missed "Company:", "Email:" and "Postal mail:" blanks that have only empty space after the label. 16 s, about 8¢.
+  - Fixes since: the label-gap rule now also knows party-detail labels (company, email, address, phone), so Company is detected. An instruction bracket next to a blank (`$____ [PROVIDE AMOUNT]`) is removed when the blank is filled.
+  - Still open: a blank right after a checkbox glyph ("☐ Email:"), an instruction bracket that wraps onto the next line, and letterhead words in capitals with no brackets ("LAW FIRM", "ADDRESS"). The reviewer adds these by hand.
 - **Cost and latency scale with the number of blanks:** about 5¢ and 10 s for a 1-page agreement, but about 41¢ and **144 s** for that 156-blank template. Time per call is roughly 1 s per blank, so the per-call timeout is now 300 s.
   - The fixtures are cleaner than real agreements. Treat these numbers as a regression floor, not as proof of quality on the MIND agreement.
 - **CI** runs the offline eval in two places: the backend job, which skips the DOCX fixture, and inside the Docker image, which runs the full set.
@@ -45,7 +50,7 @@ _Last updated: Sun Nov 15, 2026 (early morning), end of Day 2. Day 2 was planned
 - **Secrets** live only in the Render dashboard and the owner's private notes. Never in the repo, and never in chat.
 
 **Later reminders:**
-- **Anthropic API key** `kickoff`: Individual org, Default workspace, prepaid with auto-reload off. It expires **Feb 28, 2027**. The balance was about $3.75 on Nov 15. Check it before submitting, and keep at least $2: at $0, detection silently falls back to heuristics. The key is in Render and in `backend/.env` (gitignored).
+- **Anthropic API key** `kickoff`: Individual org, Default workspace, prepaid with auto-reload off. It expires **Feb 28, 2027**. The balance was about $2.60 on Nov 15. Check it before submitting, and keep at least $2: at $0, detection silently falls back to heuristics. The key is in Render and in `backend/.env` (gitignored).
 - The workspace's 750 free Render hours are shared with two other services; suspend those if grading runs into December.
 - Optional, before submitting: rotate the Atlas DB user's password, and update `MONGODB_URI` in Render to match.
 
