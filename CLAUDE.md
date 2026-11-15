@@ -117,7 +117,8 @@ backend/
     worker/              queue.py (claim/backoff/dead-letter), handlers.py, scheduler.py
   tests/
   evals/                 fixtures/ (synthetic agreements), expected/ (labels), make_fixtures.py, run.py
-  scripts/               gmail_auth.py (mints the Gmail refresh token), seed_demo.py
+  scripts/               gmail_auth.py (mints the Gmail refresh token), demo_sign.py (preview detection + a fake-signed PDF), seed_demo.py
+  samples/               drop agreements here for demo_sign; git-ignored except the README
 frontend/
   src/                   pages/, components/, api/ (typed client), lib/
 Dockerfile               Multi-stage: node build → python:3.13-slim + libreoffice-writer-nogui + fonts
@@ -145,6 +146,10 @@ uv run python -m evals.run             # full pipeline against claude-opus-5-5
 uv run python -m evals.run --baseline evals/out/<earlier>.json   # compare two runs
 # The DOCX fixture needs LibreOffice, so run the full offline set inside the image:
 docker build -t agreement-app .. && docker run --rm -e APP_ENV=test agreement-app python -m evals.run --offline
+
+# Preview on any agreement: writes samples/out/<name>-review.pdf (proposed fields) and -signed.pdf
+# (filled with fake data, typed signatures). Online mode costs about 5–40¢ per document.
+uv run python -m scripts.demo_sign samples/<file>.pdf [--offline]
 
 # One-time: mint the Gmail API refresh token for the dedicated sender account
 uv run python -m scripts.gmail_auth

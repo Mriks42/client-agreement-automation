@@ -268,3 +268,26 @@ def test_full_width_rule_is_not_a_blank() -> None:
 
     [slot] = slots_of(make_pdf(draw))
     assert slot.before == "Signature:"
+
+
+def test_stamp_replaces_placeholder_text_and_flattens_values() -> None:
+    def draw(page: pymupdf.Page) -> None:
+        page.insert_text((72, 100), "Client: [CLIENT NAME] agrees.")
+        page.insert_text((72, 140), "Signature:")
+        page.draw_line((130, 141.5), (330, 141.5))
+        page.insert_text((72, 180), "[ ] Option")
+
+    data = make_pdf(draw)
+    ex = pe.extract(data)
+    placeholder = next(s for s in ex.slots if s.kind == "placeholder")
+    stamps = [
+        pe.Stamp(1, placeholder.bbox, "text", "Acme Test Co", redact=placeholder.redact),
+        pe.Stamp(1, pe.Box(130, 120, 330, 141.5), "signature", "Jane Client"),
+        pe.Stamp(1, next(s for s in ex.slots if s.kind == "checkbox").bbox, "check"),
+    ]
+    out = pe.stamp(data, stamps)
+    with pymupdf.open(stream=out, filetype="pdf") as doc:
+        text = doc[0].get_text()
+        assert "[CLIENT NAME]" not in text
+        assert "Acme Test Co" in text and "Jane Client" in text
+        assert len(doc[0].get_drawings()) >= 3  # the signature line survives, plus the tick

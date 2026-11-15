@@ -760,3 +760,94 @@ def _signature_page_header(
         pymupdf.Rect(left, 96, right, 140), note, fontname="helv", fontsize=9.5, lineheight=1.3
     )
     return 150.0
+
+
+@dataclass
+class Stamp:
+    """One value to write into the PDF. Placeholder text under `redact` is removed first."""
+
+    page: int
+    rect: Box
+    kind: Literal["text", "check", "signature"]
+    value: str = ""  # the text, or the signer's name for a typed signature
+    image: bytes | None = None  # PNG of a drawn signature
+    redact: list[Box] = field(default_factory=list)
+
+
+_INK = (0.06, 0.14, 0.42)  # dark blue, so signer marks stand out from printed text
+
+
+def stamp(data: bytes, stamps: list[Stamp]) -> bytes:
+    """Write values into the PDF (flattened: plain page content, no form fields left on top).
+
+    Long values shrink to fit their field instead of reflowing the document (DECISIONS.md D3)."""
+    with pymupdf.open(stream=data, filetype="pdf") as doc:
+        by_page: dict[int, list[Stamp]] = {}
+        for s in stamps:
+            by_page.setdefault(s.page, []).append(s)
+        for number, items in by_page.items():
+            page = doc[number - 1]
+            redact = [r for s in items for r in s.redact]
+            if redact:
+                for r in redact:
+                    page.add_redact_annot(_prect(r), fill=False)
+                # Remove only the placeholder text; keep lines, highlights and images.
+                page.apply_redactions(
+                    images=pymupdf.PDF_REDACT_IMAGE_NONE,  # type: ignore[attr-defined]
+                    graphics=pymupdf.PDF_REDACT_LINE_ART_NONE,  # type: ignore[attr-defined]
+                )
+            for w in list(page.widgets() or []):
+                if any(_prect(s.rect).intersects(w.rect) for s in items):
+                    page.delete_widget(w)
+            for s in items:
+                _write(page, s)
+        return doc.tobytes(garbage=3, deflate=True)
+
+
+def _write(page: pymupdf.Page, s: Stamp) -> None:
+    r = _prect(s.rect)
+    if s.kind == "check":
+        inset = min(r.width, r.height) * 0.2
+        a = pymupdf.Rect(r.x0 + inset, r.y0 + inset, r.x1 - inset, r.y1 - inset)
+        page.draw_line(a.tl, a.br, color=_INK, width=1.2)
+        page.draw_line(a.tr, a.bl, color=_INK, width=1.2)
+        return
+    if s.kind == "signature" and s.image:
+        page.insert_image(r, stream=s.image, keep_proportion=True)
+        return
+    text = s.value.strip()
+    if not text:
+        return
+    font = "tiit" if s.kind == "signature" else "helv"
+    color = _INK if s.kind == "signature" else (0, 0, 0)
+    if s.kind != "signature" and r.height >= 22:  # a block: wrap, shrinking until it fits
+        size = 10.0
+        while size >= 5:
+            if page.insert_textbox(r, text, fontsize=size, fontname=font, color=color) >= 0:
+                return
+            size -= 0.5
+    size = min(
+        r.height * (0.8 if s.kind == "signature" else 0.72), 20.0 if font == "tiit" else 11.0
+    )
+    width = pymupdf.get_text_length(text, fontname=font, fontsize=size)
+    if width > r.width - 3:
+        size = max(4.0, size * (r.width - 3) / width)
+    baseline = r.y1 - max(1.5, r.height * 0.18)
+    page.insert_text((r.x0 + 1.5, baseline), text, fontsize=size, fontname=font, color=color)
+
+
+def draw_fields(
+    data: bytes, boxes: list[tuple[int, Box, str, tuple[float, float, float]]]
+) -> bytes:
+    """A review copy: each (page, rect, label, rgb) drawn as a tinted, labelled box."""
+    with pymupdf.open(stream=data, filetype="pdf") as doc:
+        for number, box, label, rgb in boxes:
+            page = doc[number - 1]
+            r = _prect(box)
+            page.draw_rect(r, color=rgb, fill=rgb, fill_opacity=0.15, width=0.7)
+            page.insert_text((r.x0 + 1, r.y0 + 5.5), label[:60], fontsize=5, color=rgb)
+        return doc.tobytes(garbage=3, deflate=True)
+
+
+def _prect(b: Box) -> pymupdf.Rect:
+    return pymupdf.Rect(b.x0, b.y0, b.x1, b.y1)

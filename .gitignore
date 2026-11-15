@@ -23,6 +23,10 @@ client_secret*.json
 # Eval outputs (fixtures themselves are committed)
 backend/evals/out/
 
+# Local agreements for scripts/demo_sign.py (never committed)
+backend/samples/*
+!backend/samples/README.md
+
 # OS / editors
 .DS_Store
 .idea/
