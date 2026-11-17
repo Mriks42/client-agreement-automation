@@ -6,11 +6,13 @@ import type {
   FileDetail,
   FileInput,
   FileSummary,
+  InvitePreview,
   Mark,
   Me,
   NewApiKey,
   Role,
   SignView,
+  Team,
   Template,
   TemplateSummary,
   WebhookDelivery,
@@ -329,5 +331,56 @@ export function useRetryDelivery() {
   return useMutation({
     mutationFn: (id: string) => api.post<{ queued: boolean }>(`/api/settings/webhook/deliveries/${id}/retry`),
     onSuccess: () => void qc.invalidateQueries({ queryKey: ['webhook-deliveries'] }),
+  })
+}
+
+// ---- team -----------------------------------------------------------------------------------
+export function useTeam() {
+  return useQuery({ queryKey: ['team'], queryFn: () => api.get<Team>('/api/settings/team') })
+}
+
+export function useInviteMember() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (body: { email: string; name?: string }) => api.post<Team>('/api/settings/team/invites', body),
+    onSuccess: (team) => qc.setQueryData(['team'], team),
+  })
+}
+
+export function useCopyInviteLink() {
+  return useMutation({
+    mutationFn: (id: string) => api.post<{ url: string }>(`/api/settings/team/invites/${id}/link`),
+  })
+}
+
+export function useRevokeInvite() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => api.delete<null>(`/api/settings/team/invites/${id}`),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ['team'] }),
+  })
+}
+
+export function useRemoveMember() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => api.delete<null>(`/api/settings/team/members/${id}`),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ['team'] }),
+  })
+}
+
+export function useInvitePreview(token: string) {
+  return useQuery({
+    queryKey: ['invite', token],
+    queryFn: () => api.get<InvitePreview>(`/api/auth/invites/${token}`),
+    retry: false,
+  })
+}
+
+export function useJoin() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (body: { token: string; name: string; password: string }) => api.post<Me>('/api/auth/join', body),
+    onSuccess: (me) => qc.setQueryData(['me'], me),
   })
 }

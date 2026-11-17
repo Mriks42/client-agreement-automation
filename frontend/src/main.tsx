@@ -5,7 +5,7 @@ import { createBrowserRouter, RouterProvider } from 'react-router'
 import { ApiError } from './api/client'
 import { AppShell } from './components/AppShell'
 import './index.css'
-import { LoginPage, SignupPage } from './pages/AuthPages'
+import { JoinPage, LoginPage, SignupPage } from './pages/AuthPages'
 import { FilePage } from './pages/FilePage'
 import { FilesPage } from './pages/FilesPage'
 import { HomePage } from './pages/HomePage'
@@ -31,6 +31,7 @@ const router = createBrowserRouter([
   { path: '/', element: <HomePage /> },
   { path: '/login', element: <LoginPage /> },
   { path: '/signup', element: <SignupPage /> },
+  { path: '/join/:token', element: <JoinPage /> },
   { path: '/sign/:token', element: <SignPage /> },
   {
     element: <AppShell />,

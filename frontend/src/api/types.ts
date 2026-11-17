@@ -243,3 +243,18 @@ export type WebhookDelivery = {
   updated_at: string
   next_attempt_at: string | null
 }
+
+export type TeamMember = { id: string; name: string; email: string; joined_at: string; you: boolean }
+
+export type TeamInvite = {
+  id: string
+  email: string
+  name: string | null
+  invited_by_name: string
+  created_at: string
+  expires_at: string
+}
+
+export type Team = { members: TeamMember[]; invites: TeamInvite[] }
+
+export type InvitePreview = { org_name: string; email: string; name: string | null; invited_by_name: string }

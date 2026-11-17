@@ -2,11 +2,16 @@ import { useState, type FormEvent, type ReactNode } from 'react'
 import { errorProblems } from '../api/client'
 import {
   useApiKeys,
+  useCopyInviteLink,
   useCreateApiKey,
   useDeleteWebhook,
+  useInviteMember,
+  useRemoveMember,
+  useRevokeInvite,
   useRetryDelivery,
   useRevokeApiKey,
   useSaveWebhook,
+  useTeam,
   useTestWebhook,
   useWebhook,
   useWebhookDeliveries,
@@ -23,10 +28,11 @@ export function SettingsPage() {
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Settings</h1>
         <p className="mt-1 text-sm text-slate-600">
-          Connect your other systems, like your CRM or practice manager. They can open a file with an API key, and a
-          webhook tells them when it’s signed so work can start.
+          Your team, and your other systems: a CRM or practice manager can open a file with an API key, and a webhook
+          tells it when the agreement is signed so work can start.
         </p>
       </div>
+      <TeamCard />
       <ApiKeys />
       <Webhook />
       <QuickStart />
@@ -59,6 +65,126 @@ function Secret({ value, label }: { value: string; label: string }) {
         {copied ? 'Copied' : 'Copy'}
       </Button>
     </div>
+  )
+}
+
+// ---- team ---------------------------------------------------------------------------------------
+function TeamCard() {
+  const team = useTeam()
+  const inviteMember = useInviteMember()
+  const copyLink = useCopyInviteLink()
+  const revoke = useRevokeInvite()
+  const remove = useRemoveMember()
+  const [email, setEmail] = useState('')
+  const [name, setName] = useState('')
+  const [copied, setCopied] = useState<{ id: string; url: string } | null>(null)
+  const [sentTo, setSentTo] = useState<string | null>(null)
+
+  const submit = (e: FormEvent) => {
+    e.preventDefault()
+    const to = email.trim()
+    inviteMember.mutate(
+      { email: to, name: name.trim() || undefined },
+      {
+        onSuccess: () => {
+          setSentTo(to)
+          setEmail('')
+          setName('')
+        },
+      },
+    )
+  }
+  const problems = errorProblems(inviteMember.error)
+
+  return (
+    <Card>
+      <h2 className="text-base font-semibold">Team</h2>
+      <p className="mt-1 text-sm text-slate-600">
+        Everyone here has their own login and sees the same agreements and files. Files they send go out in their name.
+      </p>
+      {team.isPending ? (
+        <Spinner className="mt-4 h-5 w-5 text-slate-400" />
+      ) : (
+        <ul className="mt-3 divide-y divide-slate-100 text-sm">
+          {team.data?.members.map((m) => (
+            <li key={m.id} className="flex items-center justify-between gap-3 py-2.5">
+              <div className="min-w-0">
+                <p className="font-medium">
+                  {m.name} {m.you && <span className="font-normal text-slate-500">(you)</span>}
+                </p>
+                <p className="truncate text-xs text-slate-500">
+                  {m.email} · joined {formatDate(m.joined_at)}
+                </p>
+              </div>
+              {!m.you && (
+                <Button
+                  variant="ghost"
+                  busy={remove.isPending && remove.variables === m.id}
+                  onClick={() => {
+                    if (window.confirm(`Remove ${m.name}? They’re logged out at once, and the API keys they made stop working.`)) {
+                      remove.mutate(m.id)
+                    }
+                  }}
+                >
+                  Remove
+                </Button>
+              )}
+            </li>
+          ))}
+          {team.data?.invites.map((i) => (
+            <li key={i.id} className="py-2.5">
+              <div className="flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="font-medium">
+                    {i.name ?? i.email} <span className="font-normal text-amber-700">invited</span>
+                  </p>
+                  <p className="truncate text-xs text-slate-500">
+                    {i.email} · by {i.invited_by_name} · link works until {formatDate(i.expires_at)}
+                  </p>
+                </div>
+                <div className="flex shrink-0 gap-1">
+                  <Button
+                    variant="secondary"
+                    busy={copyLink.isPending && copyLink.variables === i.id}
+                    onClick={() =>
+                      copyLink.mutate(i.id, {
+                        onSuccess: ({ url }) => {
+                          setCopied({ id: i.id, url })
+                          copy(url)
+                        },
+                      })
+                    }
+                  >
+                    Copy invite link
+                  </Button>
+                  <Button variant="ghost" busy={revoke.isPending && revoke.variables === i.id} onClick={() => revoke.mutate(i.id)}>
+                    Revoke
+                  </Button>
+                </div>
+              </div>
+              {copied?.id === i.id && (
+                <div className="mt-2">
+                  <Secret value={copied.url} label="Invite link" />
+                  <p className="mt-1 text-xs text-slate-500">Copied. Send it to {i.email} yourself; it’s just for them.</p>
+                </div>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+      {sentTo && <Alert tone="success" className="mt-3">Invitation emailed to {sentTo}. If it doesn’t arrive, use Copy invite link.</Alert>}
+      <form onSubmit={submit} className="mt-4 grid gap-2 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
+        <TextInput id="invite-name" label="Name (optional)" maxLength={120} value={name} onChange={(e) => setName(e.target.value)} />
+        <TextInput id="invite-email" label="Email" type="email" required maxLength={254} value={email} onChange={(e) => setEmail(e.target.value)} />
+        <Button type="submit" busy={inviteMember.isPending}>
+          Invite
+        </Button>
+      </form>
+      {inviteMember.error && <Alert className="mt-3">{problems.length ? problems.join(' ') : inviteMember.error.message}</Alert>}
+      {(remove.error || revoke.error || copyLink.error) && (
+        <Alert className="mt-3">{(remove.error ?? revoke.error ?? copyLink.error)?.message}</Alert>
+      )}
+    </Card>
   )
 }
 

@@ -1,6 +1,6 @@
 import { useState, type FormEvent, type ReactNode } from 'react'
-import { Link, Navigate, useSearchParams } from 'react-router'
-import { useLogin, useMe, useSignup } from '../api/hooks'
+import { Link, Navigate, useNavigate, useParams, useSearchParams } from 'react-router'
+import { useInvitePreview, useJoin, useLogin, useMe, useSignup } from '../api/hooks'
 import { Alert, Button, FullPageSpinner, TextInput } from '../components/ui'
 import { PRODUCT_NAME } from '../lib/product'
 
@@ -115,6 +115,80 @@ export function SignupPage() {
         {signup.isError && <Alert>{signup.error.message}</Alert>}
         <Button type="submit" className="w-full" busy={signup.isPending}>
           Create account
+        </Button>
+      </form>
+    </AuthCard>
+  )
+}
+
+/** /join/:token : accept a colleague's invitation and choose a password. The link is the credential. */
+export function JoinPage() {
+  const { token = '' } = useParams()
+  const me = useMe()
+  const invite = useInvitePreview(token)
+  const join = useJoin()
+  const navigate = useNavigate()
+  const [name, setName] = useState<string | null>(null)
+  const [password, setPassword] = useState('')
+
+  if (me.isPending || invite.isPending) return <FullPageSpinner />
+  const loginLink = (
+    <Link className="font-medium text-brand" to="/login">
+      Log in
+    </Link>
+  )
+  if (invite.isError) {
+    return (
+      <AuthCard title="This invitation isn’t valid" footer={<>Already have a login? {loginLink}</>}>
+        <p className="text-sm text-slate-700">{invite.error.message}</p>
+      </AuthCard>
+    )
+  }
+  const inv = invite.data
+  if (me.data && !join.isSuccess) {
+    return (
+      <AuthCard title={`Join ${inv.org_name}`} footer={<Link className="font-medium text-brand" to="/files">Back to your files</Link>}>
+        <p className="text-sm text-slate-700">
+          You’re logged in as {me.data.user.email}. To accept this invitation for {inv.email}, log out first, then open
+          the link again.
+        </p>
+      </AuthCard>
+    )
+  }
+
+  const submit = (e: FormEvent) => {
+    e.preventDefault()
+    join.mutate({ token, name: (name ?? inv.name ?? '').trim(), password }, { onSuccess: () => navigate('/files', { replace: true }) })
+  }
+
+  return (
+    <AuthCard title={`Join ${inv.org_name}`} footer={<>Already have a login? {loginLink}</>}>
+      <p className="mb-4 text-sm text-slate-600">
+        {inv.invited_by_name} invited you. You’ll see the same agreements and files as the rest of the team.
+      </p>
+      <form onSubmit={submit} className="space-y-4">
+        <TextInput label="Email" type="email" value={inv.email} readOnly disabled hint="Your login. It’s the address you were invited at." />
+        <TextInput
+          label="Your name"
+          autoComplete="name"
+          required
+          maxLength={120}
+          value={name ?? inv.name ?? ''}
+          onChange={(e) => setName(e.target.value)}
+        />
+        <TextInput
+          label="Choose a password"
+          type="password"
+          autoComplete="new-password"
+          required
+          minLength={8}
+          hint="At least 8 characters."
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+        />
+        {join.isError && <Alert>{join.error.message}</Alert>}
+        <Button type="submit" className="w-full" busy={join.isPending}>
+          Join {inv.org_name}
         </Button>
       </form>
     </AuthCard>
