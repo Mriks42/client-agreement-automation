@@ -81,6 +81,28 @@ def test_two_blanks_on_one_line_split_the_label_text() -> None:
     assert (second.before, second.after) == ("Date:", "")
 
 
+def test_very_short_underscore_blanks_in_small_type() -> None:
+    """ "___" for initials or to mark an option, in 9 pt Times, is 13.5 pt wide: still a blank.
+    Two underscores, or three in tiny type (under 8 pt), are not."""
+
+    def draw(page: pymupdf.Page) -> None:
+        page.insert_text((72, 100), "Initials: ___", fontsize=9, fontname="tiro")
+        page.insert_text((72, 130), "___ Exclusive / ___ Nonexclusive", fontsize=9, fontname="tiro")
+        page.insert_text((72, 160), "within ________ (__) days", fontsize=10, fontname="tiro")
+        page.insert_text((72, 190), "footnote ___ mark", fontsize=5, fontname="tiro")
+
+    slots = slots_of(make_pdf(draw))
+    short = [s for s in slots if s.bbox.width < 15]
+    assert [(s.before, s.after) for s in short] == [
+        ("Initials:", ""),
+        ("", "Exclusive /"),
+        ("Exclusive /", "Nonexclusive"),
+    ]
+    assert all(s.bbox.width >= 8 for s in short)
+    # "________" is a blank as before; "(__)" and the 5 pt run aren't.
+    assert [s.before for s in slots if s.bbox.width >= 15] == ["within"]
+
+
 def test_drawn_line_is_a_blank_but_underlined_text_and_table_borders_are_not() -> None:
     def draw(page: pymupdf.Page) -> None:
         page.insert_text((72, 100), "Signature:")

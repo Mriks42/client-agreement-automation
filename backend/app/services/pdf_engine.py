@@ -242,6 +242,11 @@ _LABEL_RE = re.compile(
 )
 _TOC_TAIL_RE = re.compile(r"^\s*\d+\s*$")
 _MIN_UNDERSCORES = 3
+# pt. Three underscores in small type ("___" for initials, or "___ Exclusive" to mark an option)
+# can be under 10 pt wide, so underscore runs only need 8 pt. Dot runs keep 15 pt: short ones
+# are ellipses and leaders far more often than blanks.
+_MIN_UNDERSCORE_WIDTH = 8.0
+_MIN_DOTS_WIDTH = 15.0
 _MIN_DOTS = 6
 _MIN_SEGMENT = 36.0  # pt; shorter horizontal strokes are decoration or glyph parts
 _ROW_TOLERANCE = 3.0  # pt; baselines closer than this are the same row
@@ -466,7 +471,7 @@ def _char_runs(line: _RawLine, covered: list[Box]) -> list[_Draft]:
             )
             if (
                 is_blank
-                and box.width >= 15
+                and box.width >= (_MIN_UNDERSCORE_WIDTH if ch.c == "_" else _MIN_DOTS_WIDTH)
                 and not any(box.x_overlap(c) > 0 and _same_row(box, c) for c in covered)
                 and not (ch.c != "_" and _TOC_TAIL_RE.match(tail))  # table-of-contents leader
             ):

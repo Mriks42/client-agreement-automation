@@ -704,6 +704,63 @@ def template_with_options() -> dict[str, Any]:
     }
 
 
+def short_blanks() -> dict[str, Any]:
+    """Very short underscore blanks in small type, like the AIGA design agreement: "___" option
+    marks, a "___ percent" rate and "___" initials, each under 15 pt wide (three underscores in
+    9 pt Times are 13.5 pt)."""
+    c = Canvas()
+
+    def small(x: float, y: float, s: str) -> float:
+        c.page.insert_text((x, y), s, fontsize=9, fontname="tiro")
+        return pymupdf.get_text_length(s, fontname="tiro", fontsize=9)
+
+    c.text(72, c.y, "Design Services Agreement", size=15, bold=True)
+    c.y += 24
+    c.para(
+        'This agreement is between Northwind Test Studio LLC ("Designer") and the client named '
+        'below ("Client").'
+    )
+    c.text(72, c.y + 4, f"Client: {SHORT * 2}")
+    c.y += 26
+    c.para("1. Rights. " + LOREM.replace("Consultant", "Designer")[:150])
+    small(72, c.y + 2, "Rights (mark one):  ___ Exclusive  /  ___ Nonexclusive")
+    c.y += 20
+    c.para("2. Fees. Invoices are due within thirty days of receipt.")
+    small(72, c.y + 2, "Late fee: ___ percent per month on overdue amounts.")
+    c.y += 20
+    c.para("3. Supplements. The print supplement applies when both parties initial here.")
+    small(72, c.y + 2, "Client initials: ___")
+    small(250, c.y + 2, "Designer initials: ___")
+    c.y += 34
+    c.text(72, c.y, "NORTHWIND TEST STUDIO LLC", bold=True)
+    c.text(330, c.y, "CLIENT", bold=True)
+    for i, lab in enumerate(("Signature:", "Date:")):
+        y = c.y + 28 + i * 24
+        c.text(72, y, f"{lab} {SHORT}")
+        c.text(330, y, f"{lab} {SHORT}")
+    path = FIXTURES / "short_blanks.pdf"
+    c.save(path)
+    fields = [
+        field(1, "Client:", "text", "sender"),
+        field(1, "Rights (mark one):", "checkbox", "sender"),
+        field(1, "Exclusive /", "checkbox", "sender"),
+        field(1, "Late fee:", "text", "sender"),
+        field(1, "Client initials:", "initials", "client"),
+        field(1, "Designer initials:", "initials", "designer"),
+    ]
+    rows = [("Signature:", "signature"), ("Date:", "date_signed")]
+    for party, nth in (("designer", 1), ("client", 2)):
+        fields += [field(1, lab, t, party, nth=nth) for lab, t in rows]
+    return {
+        "description": "Very short blanks in small type: option marks, a rate, initials",
+        "roles": {
+            "designer": ["designer", "northwind", "firm", "provider", "studio"],
+            "client": ["client", "customer"],
+        },
+        "fields": fields,
+    }
+
+
 GENERATORS = [
     two_party_services,
     single_party_engagement,
@@ -716,6 +773,7 @@ GENERATORS = [
     label_gaps_and_leaders,
     fillable_form,
     template_with_options,
+    short_blanks,
 ]
 
 
