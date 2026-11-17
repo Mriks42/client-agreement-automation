@@ -7,7 +7,7 @@ from typing import Any
 from bson import ObjectId
 
 from app.repo import Tenant
-from app.services import events, finalize, signing, templates, webhooks
+from app.services import events, finalize, signing, team, templates, webhooks
 from app.services.email import Attachment, EmailPermanentError, EmailSender, OutgoingEmail
 from app.services.email.outbox import SEND_EMAIL, enqueue_email
 from app.worker.queue import JobContext, JobType
@@ -106,6 +106,11 @@ def build_registry() -> dict[str, JobType]:
             permanent_errors=(EmailPermanentError,),
         ),
         signing.EXPIRE_FILE: JobType(handler=signing.handle_expire_file),
+        team.INVITE_EMAIL: JobType(
+            handler=team.handle_invite_email,
+            max_attempts=6,
+            permanent_errors=(EmailPermanentError,),
+        ),
         # Backoff 20 s, 40 s, ... capped at an hour: 8 attempts span about an hour and a half.
         # A dead delivery shows in Settings with Retry.
         webhooks.DELIVER: JobType(

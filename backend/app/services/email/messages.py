@@ -241,3 +241,39 @@ def expired_notice(
         footer=escape(f"{product} for {org_name}"),
     )
     return Composed(subject, text, html)
+
+
+def team_invite(
+    *,
+    org_name: str,
+    invitee_name: str | None,
+    inviter_name: str,
+    url: str,
+    expires_at: datetime,
+    product: str,
+) -> Composed:
+    first = (invitee_name or "").split()[0] if (invitee_name or "").strip() else "there"
+    subject = f"{inviter_name} invited you to {org_name} on {product}"
+    lead = (
+        f"{inviter_name} invited you to join {org_name} on {product}, where the team gets its "
+        "client agreements signed on every file."
+    )
+    steps = "Choose a password to get your own login. You'll see the same agreements and files."
+    private = "This link is just for you, so please don't forward it."
+    footer_text = (
+        f"The link works until {_date(expires_at)}. If you weren't expecting this, ignore it."
+    )
+    text = (
+        "\n\n".join(
+            [f"Hi {first},", lead, steps, f"Join {org_name}:\n{url}", private, "--", footer_text]
+        )
+        + "\n"
+    )
+    html = _html(
+        preheader=lead,
+        heading=f"Join {org_name} on {product}",
+        paras=[escape(f"Hi {first},"), escape(lead), escape(steps)],
+        button=(f"Join {org_name}", url),
+        footer=escape(private) + "<br><br>" + escape(footer_text),
+    )
+    return Composed(subject, text, html)

@@ -61,6 +61,9 @@ async def ensure_indexes(database: Database) -> None:
     await db.api_keys.create_index("key_hash", unique=True)
     await db.api_keys.create_index([("org_id", 1), ("created_at", -1)])
     await db.webhook_endpoints.create_index("org_id", unique=True)
+    await db.invites.create_index("token_hashes")
+    await db.invites.create_index([("org_id", 1), ("email", 1)])
+    await db.users.create_index("org_id")
     # Idempotency-Key on POST /api/v1/files: a retried request gets the file it already made.
     await db.files.create_index(
         [("org_id", 1), ("api.idempotency_key", 1)],

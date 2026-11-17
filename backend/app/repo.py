@@ -14,7 +14,16 @@ from pymongo import ReturnDocument
 from pymongo.asynchronous.database import AsyncDatabase
 
 TENANT_COLLECTIONS = frozenset(
-    {"templates", "files", "recipients", "events", "api_keys", "webhook_endpoints"}
+    {
+        "templates",
+        "files",
+        "recipients",
+        "events",
+        "api_keys",
+        "webhook_endpoints",
+        "users",
+        "invites",
+    }
 )
 
 
@@ -110,3 +119,12 @@ async def find_api_key(db: AsyncDatabase, key_hash: str) -> dict[str, Any] | Non
     if len(key_hash) != 64:
         return None
     return await db.api_keys.find_one({"key_hash": key_hash})
+
+
+async def find_invite(db: AsyncDatabase, token_hash: str) -> dict[str, Any] | None:
+    """A team invitation by its link's SHA-256. Like a signing token, the link is the invited
+    person's credential, so this isn't scoped by org; the caller scopes everything after it to
+    the invitation's own org_id."""
+    if len(token_hash) != 64:
+        return None
+    return await db.invites.find_one({"token_hashes": token_hash})

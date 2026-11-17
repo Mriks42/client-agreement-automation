@@ -139,11 +139,11 @@ def create_app(settings: Settings | None = None, email: EmailSender | None = Non
 
 
 _SAFE_METHODS = frozenset({"GET", "HEAD", "OPTIONS"})
-_TOKEN_PATH = re.compile(r"^(/(?:api/)?sign/)[^/]+")
+_TOKEN_PATH = re.compile(r"^(/(?:api/)?sign/|/join/|/api/auth/invites/)[^/]+")
 
 
 def redact_path(path: str) -> str:
-    """Signing links carry the signer's credential in the path; never log it."""
+    """Signing and team-invitation links carry a credential in the path; never log it."""
     return _TOKEN_PATH.sub(r"\1<token>", path)
 
 
