@@ -4,11 +4,13 @@ Context for anyone working in this repo, human or AI. `DECISIONS.md` explains *w
 
 ## Current status (update at the end of every work session)
 
-_Last updated: Sun Nov 15, 2026 (evening), end of Day 5. Day 5 also finished a day early, so the whole graded path is live with two days to spare._
+_Last updated: Tue Nov 17, 2026, about 02:30 MST. The blind-test round is done. All six unseen agreements reached a signed PDF on the live app, and the two blockers it found are fixed and deployed._
 
-**Next session: the blind-test round (plan below).** Start it as soon as the owner confirms the $5 top-up; it no longer has to wait for Monday evening. Then the API and webhooks, which now have Monday instead of a squeezed Tuesday morning.
-- **The owner's inbox check is done.** The client copy of the Nov 15 file reached the owner's outside Gmail **Inbox, not spam**, from "Acme Test Co", with the 4-page signed PDF attached, and the SHA-256 in the email matched the file page. The firm's and sender's copies reached the sending inbox; the sender copies to `e2e+…@example.com` bounced, as expected.
-- **Credit:** about $2.05, at the floor. Day 5 used none. Don't upload new agreements live until the top-up is confirmed.
+**Next session (before the 12:00 freeze):**
+1. The owner decides on the polish list below. Top item: values printing tiny in short placeholders, seen on 3 of the 6 agreements.
+2. The API and webhooks, if they fit before 12:00. Otherwise cut them as DECISIONS.md "If behind schedule" says, and record the cut there.
+3. Final deploy, verified by 17:00: run `scripts.live_check`, then turn off auto-deploy.
+- **Credit:** the owner topped up $5, so the balance was about $7. The round ran 7 Claude analyses (the six agreements, plus one CPAi rerun). From past per-document costs that's an estimated $1–2; the live API doesn't expose `detection.llm`. Read the console balance and keep at least $2.
 
 **Day 5 (finalize) is done, and verified on the live app.**
 - **The job** (`services/finalize.py`, registered in `worker/handlers.py`; 5 attempts, a 10-minute lease):
@@ -26,30 +28,32 @@ _Last updated: Sun Nov 15, 2026 (evening), end of Day 5. Day 5 also finished a d
   - **Live:** the two completed files that were waiting were finalized within seconds of the deploy. That includes the file the owner signed end to end on Nov 15, whose certificate shows both real drawn signatures, IPs and browsers. A new file on the approved agreement had its signed PDF 2–5 s after the last signature, the signer's download by link was the same file, the file page in a browser showed the download with a matching hash, and Gmail accepted every email (0 dead jobs). The signed copy reached an outside Gmail Inbox (see above).
 - **Free live smoke test, for Tuesday's final deploy:** `LIVE_CHECK_PASSWORD=<the test-suite password> uv run python -m scripts.live_check --base https://kickoff-r713.onrender.com --email e2e+1794741626993@example.com`. That account holds the approved "two party services" agreement and the completed live files. It runs a whole file on the approved agreement with no upload (so no Claude call) and checks the signed PDF. Add `--inspect-only` to just check the completed files.
 
-**Blind-test round (next, about 2.5 h and $2–3 of credit).** The grade is one live run on an agreement we've never seen, so measure the whole path on six more unseen agreements, judged on the first run, and fix only what would break Anthony's path.
-- **Before starting:** the owner tops up $5 (balance then about $7). Day 5 is live, so every run ends in a signed PDF with its certificate: open it and check the certificate too.
-- **The set.** Public templates only. Download them into `backend/samples/` (git-ignored); none has been seen before.
-  1. Accounting engagement letter, Word: Journal of Accountancy's sample 1040 letter (`.doc`, with bracketed placeholders). Upload the `.doc` first to check the refusal and its next step, then save it as `.docx` and upload that. https://www.journalofaccountancy.com/wp-content/uploads/sites/3/2014/01/1040-engagement-letter-sample.doc
-  2. Accounting engagement letter, PDF: the CPAi (AICPA insurance program) individual tax letter. This is a different signing style, where the firm may be the only signer. https://forms.cpai.com/pdfs/TAX_Individual_2016_FINAL.pdf
-  3. A fillable PDF (AcroForm fields): one of WCG CPAs' fillable engagement letters. https://wcginc.com/tax-center/engagement/
-  4. Consulting agreement, closest to an AI consultancy's: PlatoForms' 2-page Business Consulting Services Agreement (client and consultant signature blocks). https://templates.platoforms.com/pdf/business-consulting-services-agreement
-  5. Long terms with few blanks: the AIGA Standard Form of Agreement for Design Services. It tests page count, latency and the appended signature page. https://aiga.org/resources/aiga-standard-form-of-agreement-for-design-services
-  6. A scan: #4 printed to an image-only PDF (no text layer). It tests the scan fallback (an appended signature page, plus manual placement).
-  - Backups if a download is gated: the AICPA amended-return letter, Wonder.legal's US consulting agreement, or a Google Docs export of any of the above.
-- **Each document, on the live app with Claude:** upload, then note the analysis time and cost (`detection.llm` on the template). Count the edits needed before Approve. Open a file, preview, send, sign as the client on a phone viewport and then as the firm, and open the final PDF. Use fake details throughout, and plus-addresses of the sending inbox for the signers. For a quick look while triaging, use `scripts.demo_sign` (same cost).
-- **Score:** signers and signing order right; signature blocks found in the document (or a page appended); blanks found out of the total; false positives; who fills each field (sender or signer) right; reviewer edits needed; anything wrong on the signing page or in the final PDF.
-- **Pass bar:** each document reaches a signed PDF with correct signers and order, and needs at most 5 reviewer edits. **Blockers:** a crash, an analysis that never finishes, the wrong signing order, or a missing signature block that is hard to fix in the editor.
-- **Triage:** fix blockers Monday night or first thing Tuesday, each with a test or an eval fixture. A prompt change needs an `evals.run` comparison (about 55¢ online; say so before running it). Everything else goes to DECISIONS.md as a known limitation. Nothing after the Tuesday 12:00 freeze.
-- **Budget:** first pass about $1–1.50 (5–40¢ a document), reruns after fixes about $0.50–1, one online eval about 55¢. That's $2–3 in all, which leaves about $4 for grading, above the $2 floor.
-- **Record** the results in the DECISIONS.md change log (as for the earlier blind tests) and in this status.
+**Blind-test round (Nov 17): done.** Six public agreements, none seen before, each judged on its first run on the live app with Claude. Each run: upload, review, file, preview, send. The client signed on an iPhone 13 viewport (typed), the firm on a desktop (drawn). Then the signed PDF and certificate were opened and checked: the hash, no form fields left, the signer's download identical, and no failed emails. A scratch Playwright script drove the installed Chrome; it isn't committed. The agreements are in `backend/samples/blind/` (git-ignored). The test firm was `e2e+blind1794904039@example.com`; its password wasn't recorded.
+
+| # | Agreement | Analysis | Signers, in order | Blanks found | Edits | Result |
+|---|---|---|---|---|---|---|
+| 1 | Journal of Accountancy 1040 letter, Word. The `.doc` was refused with its next step, then the `.docx` was uploaded | 104 s (14 s of it conversion) | Client, spouse, firm (a signature page was added: the letter has no firm line) | 28/28, 0 false | 0 | Signed PDF in 3 s |
+| 2 | CPAi individual tax letter, 10-page PDF | 35 s | Client, spouse, firm | 30/30, 0 false | 0 | **2 blockers, fixed** (below). The rerun was clean |
+| 3 | WCG 1040 engagement form, 6-page PDF | 25 s | Taxpayer, spouse (the firm correctly doesn't sign) | 20/20, 0 false | 1: remove the optional representative | Signed |
+| 4 | PlatoForms consulting agreement, fillable PDF (23 form fields: dropdowns, signature boxes) | 20 s | Client, consultant | 23/23, 0 false | 0 | Signed, no form fields left |
+| 5 | AIGA design services agreement, 28 pages | 46 s | Client, designer | Every core term and both signature blocks; about 20 short "___" option and initials blanks missed | 0 (2 more per supplement used) | Signed PDF in 9 s |
+| 6 | Scan of #4 (images only) | 9 s | Client, consultant (read from the page images) | 0/23, as expected; a signature page was added | 5, placed by hand in the editor | Signed |
+
+- **Pass bar met on all six.** Every email was accepted, and every signed PDF was ready 2–9 s after the last signature.
+- **Blockers fixed** (commit `5cc3912`, tests in `test_pdf_engine.py` and `test_detection.py`):
+  - Filling a placeholder removed words on the lines above and below it: 26 words on the CPAi letter, so the signed wording changed. In tightly set text the extraction boxes overlap the next line, and redaction removes every glyph it touches. Removal now clears only `pdf_engine._ink_band`, a band from the baseline to about x-height that's never larger than the old box. A sweep of about 300 placeholders in 10 agreements found 0 words lost and 0 placeholder text left.
+  - "$[X]" for the fee was read as a ticked box, so the fee was written over the printed "[X]". A bracket box labelled as a value is now removed like a placeholder (`mapper._rect`), and one labelled as a checkbox keeps its brackets.
+- **Not fixed** (DECISIONS.md, Known limitations): values print tiny in short placeholders; blanks under 15 pt aren't found; optional signers belong to the template; dropdown options aren't offered; a scan's hint text stays under values; the added signature page shows "?" around a curly-quoted title; role names can echo placeholders ("[Client Name]").
+- Tests: 127 backend tests pass (7 new), plus ruff and mypy. The offline eval is unchanged at 71/72 without the Docker-only Word fixture.
 
 **Cuts applied (Nov 15):** the "if time allows" items, the verify page, logo and colour branding, bounce detection, and the template-versioning UI. Don't build them. The API and webhooks stay in scope, scheduled last. See DECISIONS.md "If behind schedule".
 
 **Remaining schedule:**
-- **Mon:** the blind-test round (once the top-up is confirmed) and its blocker fixes, then the API and webhooks.
-- **Tue morning:** remaining blind-test fixes and polish. Run `scripts.live_check` after the final deploy.
-- **Polish list** (Tuesday morning, before the 12:00 freeze):
-  - Remove the "System status" box from the logged-out landing page (`frontend/src/pages/HomePage.tsx`). It's a developer check that makes the customer-facing page look unfinished ("Llm ok" and the full version hash), and "Llm ok" only means a key is configured: with no credit left it would still say ok while detection quietly uses heuristics. Keep `/api/health` itself for UptimeRobot and Render.
+- **Tue morning, before the 12:00 freeze:** the polish list, then the API and webhooks or their cut.
+- **Polish list** (the owner decides; none is a blocker):
+  - **Recommended: tiny values in short placeholders.** When a sender's value would shrink below about 8 pt, let it run on into the empty space to its right on the same line, up to the next text or the margin. Do this in `pdf_engine._write`, for sender values only, so the signing page still matches the PDF. It fixes "[Date]" and "[Address]" left alone on a line. It can't fix a placeholder in mid-sentence. About an hour, with a test. There's no prompt change, so no online eval.
+  - The added signature page's title: pass it through `pdf_engine.latin1()`, so curly quotes stop showing as "?". One line, with a test.
+  - Remove the "System status" box from the logged-out landing page (`frontend/src/pages/HomePage.tsx`). It's a developer check that makes the customer-facing page look unfinished ("Llm ok" and the full version hash). "Llm ok" only means a key is configured: with no credit left it would still say ok while detection quietly used heuristics. Keep `/api/health` itself for UptimeRobot and Render.
 - **Hard stops:** feature freeze Tue 12:00, final deploy verified by 17:00, last commit by 20:00 MST.
 
 **Day 4 is done, and verified on the live app.**
