@@ -1,5 +1,5 @@
 import { Link } from 'react-router'
-import { useFiles, useTemplates } from '../api/hooks'
+import { useFiles, useMe, useTemplates } from '../api/hooks'
 import type { FileSummary } from '../api/types'
 import { Alert, FileStatusBadge, FullPageSpinner } from '../components/ui'
 import { formatDate } from '../lib/format'
@@ -7,6 +7,7 @@ import { formatDate } from '../lib/format'
 export function FilesPage() {
   const files = useFiles()
   const templates = useTemplates()
+  const me = useMe()
   const active = templates.data?.filter((t) => t.status === 'active') ?? []
   const newFileTo = active.length === 1 ? `/files/new?template=${active[0].id}` : '/files/new'
 
@@ -44,7 +45,7 @@ export function FilesPage() {
                   <span className="block truncate font-medium">{f.title}</span>
                   <span className="block truncate text-sm text-slate-500">{f.agreement_name}</span>
                 </span>
-                <span className="w-56 text-sm text-slate-600">{progress(f)}</span>
+                <span className="w-56 text-sm text-slate-600">{progress(f, me.data?.user.email)}</span>
                 <FileStatusBadge status={f.status} />
                 <span className="w-28 text-right text-sm text-slate-400">{formatDate(f.updated_at)}</span>
               </Link>
@@ -56,7 +57,10 @@ export function FilesPage() {
   )
 }
 
-function progress(f: FileSummary): string {
+function progress(f: FileSummary, myEmail: string | undefined): string {
+  if (f.waiting_for && myEmail && f.waiting_for.email.toLowerCase() === myEmail.toLowerCase()) {
+    return `Waiting for you to sign (${f.signed_count} of ${f.signer_count} signed)`
+  }
   if (f.waiting_for) return `Waiting for ${f.waiting_for.name} (${f.signed_count} of ${f.signer_count} signed)`
   if (f.status === 'completed') return 'Signed: ready to start work'
   if (f.status === 'draft') return 'Not sent yet'

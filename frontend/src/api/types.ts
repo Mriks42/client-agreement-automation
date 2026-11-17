@@ -133,7 +133,7 @@ export type FileSummary = {
   template_id: string
   signer_count: number
   signed_count: number
-  waiting_for: { name: string; role_label: string } | null
+  waiting_for: { name: string; role_label: string; email: string } | null
   created_at: string
   updated_at: string
   sent_at: string | null

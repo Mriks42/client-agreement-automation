@@ -198,6 +198,13 @@ export function useEditRecipient(id: string) {
   )
 }
 
+/** For the logged-in person who is the file's current signer: their signing page, no email. */
+export function useSignNow(id: string) {
+  return useMutation({
+    mutationFn: (recipientId: string) => api.post<{ url: string }>(`/api/files/${id}/recipients/${recipientId}/sign-now`),
+  })
+}
+
 export function useCopyLink(id: string) {
   const qc = useQueryClient()
   return useMutation({

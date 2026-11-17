@@ -7,6 +7,8 @@ import {
   useEditRecipient,
   useFile,
   useRetryFinalize,
+  useSignNow,
+  useMe,
   useSendFile,
   useVoidFile,
 } from '../api/hooks'
@@ -202,6 +204,7 @@ function Tracking({ file: f }: { file: FileDetail }) {
 
 function StatusBanner({ file: f }: { file: FileDetail }) {
   const active = f.recipients.find((r) => r.status === 'active')
+  const myEmail = useMe().data?.user.email
   if (f.status === 'completed') return <Completed file={f} />
 
   if (f.status === 'declined') {
@@ -232,6 +235,16 @@ function StatusBanner({ file: f }: { file: FileDetail }) {
     )
   }
   const sentAt = active.last_email?.at
+  if (myEmail && active.email.toLowerCase() === myEmail.toLowerCase()) {
+    return (
+      <Alert tone="info" title="Waiting for you to sign">
+        <p>
+          Everyone before you has signed. Press <span className="font-medium">Sign now</span> below, or use the link in
+          the email we sent to {active.email}.
+        </p>
+      </Alert>
+    )
+  }
   return (
     <Alert tone="info" title={`Waiting for ${active.name} (${active.role_label}) to sign`}>
       {sentAt ? (
@@ -312,10 +325,17 @@ function RecipientRow({ file: f, r }: { file: FileDetail; r: Recipient }) {
   const live = f.status === 'sent' || f.status === 'partially_signed'
   const [editing, setEditing] = useState(false)
   const copy = useCopyLink(f.id)
+  const signNow = useSignNow(f.id)
+  const me = useMe()
+  const navigate = useNavigate()
   const [copied, setCopied] = useState<string | null>(null)
+  // The firm's own signer, logged in, can sign from here instead of from their email.
+  const mine = !!me.data && r.email.toLowerCase() === me.data.user.email.toLowerCase()
+  const canSignNow = live && r.status === 'active' && mine
   const status = (() => {
     if (r.status === 'signed') return `Signed ${formatDate(r.signed_at)}`
     if (r.status === 'declined') return `Declined ${formatDate(r.declined_at)}`
+    if (canSignNow) return 'Waiting for you'
     if (r.status === 'active') {
       if (r.viewed_at) return `Opened it ${formatDate(r.viewed_at)}, not signed yet`
       return 'Their turn to sign'
@@ -347,6 +367,19 @@ function RecipientRow({ file: f, r }: { file: FileDetail; r: Recipient }) {
       <p className="truncate text-sm text-slate-500">{r.email}</p>
       {live && (r.status === 'active' || r.status === 'pending') && (
         <div className="mt-2 flex flex-wrap gap-2">
+          {canSignNow && (
+            <Button
+              busy={signNow.isPending}
+              onClick={() =>
+                signNow.mutate(r.id, {
+                  onSuccess: ({ url }) =>
+                    navigate(`${new URL(url).pathname}?from=${encodeURIComponent(`/files/${f.id}`)}`),
+                })
+              }
+            >
+              Sign now
+            </Button>
+          )}
           {r.status === 'active' && (
             <>
               <Button variant="secondary" busy={copy.isPending} onClick={doCopy}>
@@ -364,6 +397,7 @@ function RecipientRow({ file: f, r }: { file: FileDetail; r: Recipient }) {
           )}
         </div>
       )}
+      {signNow.error && <Alert className="mt-2">{signNow.error.message}</Alert>}
       {copied && (
         <div className="mt-2 rounded-lg bg-slate-50 p-2.5 text-xs text-slate-600">
           <p>
@@ -481,6 +515,8 @@ function describe(e: FileEvent): string {
       return 'Everyone has signed'
     case 'link_copied':
       return `${by} copied the signing link for ${who}, to share it directly`
+    case 'signing_opened_in_app':
+      return `${who} opened their signing page from the file, logged in as ${String(d.login ?? '')}`
     case 'email_corrected':
       return `${by} changed ${who}’s email from ${d.from} to ${d.to}`
     case 'name_corrected':

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import { useParams } from 'react-router'
+import { Link, useParams, useSearchParams } from 'react-router'
 import { ApiError, errorProblems } from '../api/client'
 import { useConsent, useDecline, useSignView, useSubmitSignature } from '../api/hooks'
 import type { Mark, SignField, SignView } from '../api/types'
@@ -158,6 +158,7 @@ function Closed({ v, token }: { v: SignView; token: string }) {
       <Panel title={c.title}>
         {c.body}
         <Parties v={v} />
+        <BackToFile />
       </Panel>
       {(v.state === 'signed' || v.state === 'completed') && v.pages.length > 0 && (
         <details className="mx-auto max-w-3xl px-4 pb-10">
@@ -655,5 +656,18 @@ function DeclineDialog({ token, v, open, onClose }: { token: string; v: SignView
         </div>
       </form>
     </Dialog>
+  )
+}
+
+/** After Sign now from a file page (?from=/files/<id>), a way back to that file. Only same-site
+ * file paths, so a crafted link can't send someone elsewhere. */
+function BackToFile() {
+  const [params] = useSearchParams()
+  const from = params.get('from')
+  if (!from || !/^\/files\/[A-Za-z0-9]+$/.test(from)) return null
+  return (
+    <Link to={from} className="inline-block text-sm font-medium text-brand hover:underline">
+      ← Back to the file
+    </Link>
   )
 }
