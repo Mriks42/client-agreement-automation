@@ -8,7 +8,7 @@ _Last updated: Tue Nov 17, 2026, about 02:30 MST. The blind-test round is done. 
 
 **Next session (before the 12:00 freeze):**
 1. ~~The polish list~~: done, see below.
-2. The API and webhooks (the owner approved a lean version on Nov 17): API keys, open and read a file over the API, signed webhooks with retries. Stop at 10:00; cut whatever isn't solid and record the cut in DECISIONS.md.
+2. ~~The API and webhooks~~: built, see "API and webhooks" below. Verify them on the live app after the deploy.
 3. Final deploy, verified by 17:00: run `scripts.live_check`, then turn off auto-deploy.
 - **Credit:** the owner topped up $5, so the balance was about $7. The round ran 7 Claude analyses (the six agreements, plus one CPAi rerun). From past per-document costs that's an estimated $1–2; the live API doesn't expose `detection.llm`. Read the console balance and keep at least $2.
 
@@ -53,6 +53,12 @@ _Last updated: Tue Nov 17, 2026, about 02:30 MST. The blind-test round is done. 
 - **Tue morning, before the 12:00 freeze:** the polish list, then the API and webhooks or their cut.
 - **Polish list: done** (Nov 17, about 03:15). Values the firm fills in run on into the empty space to their right instead of printing tiny (`pdf_engine._right_limit`, sender values only, through `Stamp.room`). The added signature page writes curly quotes in plain form. The landing page no longer has the "System status" box. 129 backend tests pass.
 - **Hard stops:** feature freeze Tue 12:00, final deploy verified by 17:00, last commit by 20:00 MST.
+
+**API and webhooks (Nov 17, about 03:45): built, lean** (DECISIONS.md item 10, D5).
+- **Settings page** (`/settings`, `api/settings.py`): API keys (create shown once, revoke), the webhook endpoint (signing secret, new secret, test event, remove) and the delivery log (the last 25 `deliver_webhook` jobs, with Retry on one that gave up). It also has a quick-start for developers, and the full reference is at `/api/docs`.
+- **Public API** (`api/v1.py`, `Authorization: Bearer kk_live_...`): `GET /api/v1/templates`, `POST /api/v1/files` (`Idempotency-Key` header, `metadata`; it makes a draft marked as from the API, and the draft page says so), `GET /api/v1/files/{id}`, `GET /api/v1/files/{id}/signed.pdf`. Keys are found by SHA-256 (`repo.find_api_key`, the second unscoped lookup) and act for their creator.
+- **Webhooks** (`services/webhooks.py`): `events.record` calls `webhooks.on_event`, which queues one `deliver_webhook` job per event per endpoint (deduplicated) if the firm has an endpoint. The event types are file.sent, signer.signed, file.declined, file.voided, file.expired, and file.completed (on `finalized`), plus `ping` for the test. The body is `{id, type, created_at, data: {file (api_view.file_view), signer?, reason?}}`, signed `X-Kickoff-Signature: t=..,v1=HMAC-SHA256(secret, "t.body")`. Delivery makes 8 attempts with backoff, and the result's status code is kept on the job. Addresses go through `check_url`: https only and public addresses only in prod (private allowed in dev and test), no redirects, re-checked on delivery.
+- **Verified:** 135 backend tests (6 new in `test_api.py`: the key lifecycle, a file through the API with idempotency, cross-org 404s, signed and retried webhooks over a whole signing flow, the delivery log and Retry, URL safety), plus ruff, mypy, typecheck, lint and build. **Locally in Chrome:** signup, approval, a key and webhook created in Settings, the test event delivered, a file opened through the API with the draft page showing "Opened through the API with the key “CRM” (matter_id: 1042)", sent, signed. A local receiver got ping, file.sent, two signer.signed and file.completed, every signature verified, and the signed PDF downloaded with the key matched its SHA-256.
 
 **Day 4 is done, and verified on the live app.**
 - **Files** (`services/files.py`, `api/files.py`):
@@ -172,7 +178,7 @@ backend/
     config.py            Settings (env vars below)
     db.py                Mongo client, indexes, GridFS buckets
     repo.py              Tenant: the only way to query tenant collections (adds org_id; atomic transition())
-    api/                 Routers: auth, templates, files, signing (public, token-auth), health, ops; v1 (API-key auth) later
+    api/                 Routers: auth, templates, files, signing (public, token-auth), health, ops, settings (API keys, webhook), v1 (public API, API-key auth)
     domain/              Pydantic models + state enums (fields.py: Field, Role, Rect)
     services/
       accounts.py        Orgs, users, argon2 passwords, HMAC-keyed sessions, login throttle
@@ -187,7 +193,9 @@ backend/
       errors.py          NotFound / Conflict / Invalid, mapped to 404 / 409 / 422 by the routers
       finalize.py        The finalize_file job: signed PDF, audit certificate, SHA-256, everyone's copy
       email/             EmailSender protocol, gmail_api.py, console.py, messages.py (email text), outbox.py (enqueue_email)
-      webhooks.py        Outbound webhooks (HMAC-SHA256)
+      webhooks.py        Outbound webhooks: endpoint settings, URL safety check, HMAC signing, the deliver_webhook job
+      apikeys.py         API keys (SHA-256 stored, shown once), authenticate for /api/v1
+      api_view.py        A file as the API and webhooks show it
     worker/              queue.py (claim/backoff/dead-letter, due-time jobs), handlers.py (the job registry)
   tests/
   evals/                 fixtures/ (synthetic agreements), expected/ (labels), make_fixtures.py, run.py
@@ -278,7 +286,7 @@ Defined in `backend/app/config.py`. Never commit `.env`; keep `.env.example` cur
 - **Event**: an append-only audit record (sent, viewed, consented, signed, declined, reminded, bounced, ...).
 - **Job**: a durable background task (send email, deliver webhook, analyze template, finalize, remind, expire).
 
-**File status:** `draft → awaiting_approval → sent → partially_signed → completed`. The side exits are `declined`, `expired`, and `voided`. A recipient can additionally be `bounced`.
+**File status:** `draft → sent → partially_signed → completed` (a file opened through the API is a draft marked `api`; auto-send and its `awaiting_approval` status are cut, D5). The side exits are `declined`, `expired`, and `voided`. A recipient can additionally be `bounced`.
 
 ## Rules
 
@@ -286,7 +294,7 @@ Defined in `backend/app/config.py`. Never commit `.env`; keep `.env.example` cur
 - **Tenant isolation.** Every query on tenant data filters by `org_id`. Go through repository helpers that require it, and never write a bare `find({"_id": ...})` on tenant collections. Tests must cover cross-org access returning 404.
 - **No side effects inside request handlers.** Emails, webhooks, LLM calls, finalization and reminders are enqueued as jobs. Every job handler must be idempotent, because it can run more than once.
 - **State transitions are atomic.** Use `find_one_and_update` with the expected current state in the filter. Never read, modify and write state in separate steps.
-- **Humans approve AI output.** A template's AI-proposed fields cannot be used until a user approves them. A UI send always goes through the preview-and-confirm step. Files created via the API wait in `awaiting_approval` unless the org enabled auto-send.
+- **Humans approve AI output.** A template's AI-proposed fields cannot be used until a user approves them. A UI send always goes through the preview-and-confirm step. Files created via the API wait as drafts for a person to check and send (auto-send is cut).
 - **Uploaded documents are untrusted input.** Their text goes to the LLM as data, not instructions. The LLM only returns schema-validated labels for slot IDs we extracted, never coordinates or actions. Validate file type by magic bytes and enforce size and page limits.
 - **Signed artifacts are immutable.** Never modify a completed PDF or an event. Corrections create new events.
 - **Secrets and PII.** Never log signing tokens, API keys, passwords, refresh tokens or signature images. Store signing tokens and API keys as SHA-256 hashes only.
