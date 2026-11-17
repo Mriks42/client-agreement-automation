@@ -7,8 +7,8 @@ Context for anyone working in this repo, human or AI. `DECISIONS.md` explains *w
 _Last updated: Tue Nov 17, 2026, about 02:30 MST. The blind-test round is done. All six unseen agreements reached a signed PDF on the live app, and the two blockers it found are fixed and deployed._
 
 **Next session (before the 12:00 freeze):**
-1. The owner decides on the polish list below. Top item: values printing tiny in short placeholders, seen on 3 of the 6 agreements.
-2. The API and webhooks, if they fit before 12:00. Otherwise cut them as DECISIONS.md "If behind schedule" says, and record the cut there.
+1. ~~The polish list~~: done, see below.
+2. The API and webhooks (the owner approved a lean version on Nov 17): API keys, open and read a file over the API, signed webhooks with retries. Stop at 10:00; cut whatever isn't solid and record the cut in DECISIONS.md.
 3. Final deploy, verified by 17:00: run `scripts.live_check`, then turn off auto-deploy.
 - **Credit:** the owner topped up $5, so the balance was about $7. The round ran 7 Claude analyses (the six agreements, plus one CPAi rerun). From past per-document costs that's an estimated $1–2; the live API doesn't expose `detection.llm`. Read the console balance and keep at least $2.
 
@@ -43,17 +43,15 @@ _Last updated: Tue Nov 17, 2026, about 02:30 MST. The blind-test round is done. 
 - **Blockers fixed** (commit `5cc3912`, tests in `test_pdf_engine.py` and `test_detection.py`):
   - Filling a placeholder removed words on the lines above and below it: 26 words on the CPAi letter, so the signed wording changed. In tightly set text the extraction boxes overlap the next line, and redaction removes every glyph it touches. Removal now clears only `pdf_engine._ink_band`, a band from the baseline to about x-height that's never larger than the old box. A sweep of about 300 placeholders in 10 agreements found 0 words lost and 0 placeholder text left.
   - "$[X]" for the fee was read as a ticked box, so the fee was written over the printed "[X]". A bracket box labelled as a value is now removed like a placeholder (`mapper._rect`), and one labelled as a checkbox keeps its brackets.
-- **Not fixed** (DECISIONS.md, Known limitations): values print tiny in short placeholders; blanks under 15 pt aren't found; optional signers belong to the template; dropdown options aren't offered; a scan's hint text stays under values; the added signature page shows "?" around a curly-quoted title; role names can echo placeholders ("[Client Name]").
+- **Fixed afterwards in the polish** (see the polish list): tiny values in short placeholders, unless text follows them on the same line; "?" around a curly-quoted title on the added signature page.
+- **Not fixed** (DECISIONS.md, Known limitations): a value in a mid-sentence placeholder still shrinks; blanks under 15 pt aren't found; optional signers belong to the template; dropdown options aren't offered; a scan's hint text stays under values; role names can echo placeholders ("[Client Name]").
 - Tests: 127 backend tests pass (7 new), plus ruff and mypy. The offline eval is unchanged at 71/72 without the Docker-only Word fixture.
 
 **Cuts applied (Nov 15):** the "if time allows" items, the verify page, logo and colour branding, bounce detection, and the template-versioning UI. Don't build them. The API and webhooks stay in scope, scheduled last. See DECISIONS.md "If behind schedule".
 
 **Remaining schedule:**
 - **Tue morning, before the 12:00 freeze:** the polish list, then the API and webhooks or their cut.
-- **Polish list** (the owner decides; none is a blocker):
-  - **Recommended: tiny values in short placeholders.** When a sender's value would shrink below about 8 pt, let it run on into the empty space to its right on the same line, up to the next text or the margin. Do this in `pdf_engine._write`, for sender values only, so the signing page still matches the PDF. It fixes "[Date]" and "[Address]" left alone on a line. It can't fix a placeholder in mid-sentence. About an hour, with a test. There's no prompt change, so no online eval.
-  - The added signature page's title: pass it through `pdf_engine.latin1()`, so curly quotes stop showing as "?". One line, with a test.
-  - Remove the "System status" box from the logged-out landing page (`frontend/src/pages/HomePage.tsx`). It's a developer check that makes the customer-facing page look unfinished ("Llm ok" and the full version hash). "Llm ok" only means a key is configured: with no credit left it would still say ok while detection quietly used heuristics. Keep `/api/health` itself for UptimeRobot and Render.
+- **Polish list: done** (Nov 17, about 03:15). Values the firm fills in run on into the empty space to their right instead of printing tiny (`pdf_engine._right_limit`, sender values only, through `Stamp.room`). The added signature page writes curly quotes in plain form. The landing page no longer has the "System status" box. 129 backend tests pass.
 - **Hard stops:** feature freeze Tue 12:00, final deploy verified by 17:00, last commit by 20:00 MST.
 
 **Day 4 is done, and verified on the live app.**
