@@ -30,7 +30,7 @@ Kickoff then emails each signer in order, chases them (day 2 and day 5), and col
 2. Upload an agreement (PDF or Word). Analysis takes from about 10 seconds to 2 minutes.
 3. Check the coloured boxes, then press **Approve**.
 4. Go to **Files**, then **New file**. Enter the signers (Gmail plus-addresses such as `you+client@gmail.com` bring every email to one inbox) and the client's details. Then **Preview the agreement**, then **Confirm and send**.
-5. Sign as the client from the email, ideally on a phone, then countersign from the firm's email. The first email can land in Spam. **Copy signing link** on the file page always works too.
+5. Sign as the client from the email, ideally on a phone. Then countersign as the firm: press **Sign now** on the file page (when the firm's signer is you), or use the firm's email. The first email can land in Spam. **Copy signing link** on the file page always works too.
 6. The file page then offers **Download signed agreement**.
 
 ## Features I included, and why
@@ -40,7 +40,7 @@ Kickoff then emails each signer in order, chases them (day 2 and day 5), and col
 | **AI field detection with a one-time human review** (an editor to move, add or reassign fields) | Works on an agreement nobody has seen. A wrong signature field is worse than none, so a person approves once per agreement, not once per file. |
 | **New-file form built from the agreement's own blanks**, then an exact preview and Confirm | Client details are typed once, and nothing goes out unseen. |
 | **Mobile-first signing**: consent to sign electronically, a guided "Next" through each field, a typed or drawn signature, automatic dates, decline with a reason | Clients sign on phones. The consent and the audit data follow US ESIGN/UETA. |
-| **Signing in order** (client first, then the firm countersigns) | Most client agreements need both parties, and the firm signs last. |
+| **Signing in order** (client first, then the firm countersigns), with **Sign now** for the firm's own signer on the file page | Most client agreements need both parties, and the firm signs last, usually while already working in Kickoff. |
 | **Reminders, 30-day expiry, resend, correct an email, copy link, void** | Chasing signatures is the manual work the client complained about. Copy link is the way out when an email lands in spam. |
 | **Signed PDF with an audit certificate and SHA-256 fingerprints**, emailed to everyone | Proof of who signed, when, from where, and that the document hasn't changed since. |
 | **"Signed: ready to start work"** on each file, and a dashboard of every file | That's the outcome the client asked for: knowing when work can start. |

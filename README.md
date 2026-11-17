@@ -23,7 +23,7 @@ A firm uploads its standard client agreement once. AI finds where every blank an
 2. Upload an agreement. Analysis takes from about 10 seconds to 2 minutes, depending on its length.
 3. Check the proposed fields and press **Approve**.
 4. **Files → New file:** enter the signers and the client's details, then **Preview the agreement → Confirm and send**.
-5. Each signer gets an email in the firm's name. The first one may land in spam, so check there. You can also press **Copy signing link** on the file page and send the link yourself.
+5. Each signer gets an email in the firm's name. The first one may land in spam, so check there. You can also press **Copy signing link** on the file page and send the link yourself. When it's your own turn to countersign, press **Sign now** on the file page; you don't need the email.
 6. When everyone has signed, the file page offers **Download signed agreement**.
 
 ## API and webhooks
