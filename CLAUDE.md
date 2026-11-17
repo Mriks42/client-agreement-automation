@@ -20,7 +20,7 @@ _Last updated: Tue Nov 17, 2026, about 05:45 MST. Everything planned so far is b
 2. **Check the Anthropic balance** in the console; keep at least $2 for grading. Nov 17 used 10 Claude analyses: 7 in the first round and the CPAi rerun, plus 3 in the second round.
 3. **Tools used:** if any assistant besides Claude Code was used (Gemini, ChatGPT, ...), add it to SUBMISSION.md and DECISIONS.md.
 4. **Submit:** paste SUBMISSION.md into the form, with https://kickoff-r713.onrender.com and https://github.com/Mriks42/client-agreement-automation.
-- **Hard stops (moved again by the owner on Nov 17):** new features until 21:00 MST (each deployed and checked live as it lands); no pushes from 19:00 to 20:00 (Render maintenance: dashboard, API and deploys are unavailable for up to 30 min, but running services aren't affected, per status.render.com); final deploy verified with `scripts.live_check` by 22:30; documentation only after that; last commit by 23:00 MST. The official deadline is Nov 18 00:00 MST, and Anthony grades whatever is live then.
+- **Hard stops (moved again by the owner on Nov 17):** new features until 21:30 MST (each deployed and checked live as it lands); no pushes from 19:00 to 20:00 (Render maintenance: dashboard, API and deploys are unavailable for up to 30 min, but running services aren't affected, per status.render.com); final deploy verified with `scripts.live_check` by 22:30; documentation only after that; last commit by 23:00 MST. The official deadline is Nov 18 00:00 MST, and Anthony grades whatever is live then.
 
 **Day 5 (finalize) is done, and verified on the live app.**
 - **The job** (`services/finalize.py`, registered in `worker/handlers.py`; 5 attempts, a 10-minute lease):
