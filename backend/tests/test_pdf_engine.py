@@ -189,6 +189,17 @@ def test_append_signature_page_adds_a_block_per_signer() -> None:
     assert any("Terms of Business" in ln.text for ln in text)
 
 
+def test_signature_page_writes_curly_quotes_in_plain_form() -> None:
+    # Blind test: the title's quotes came out as "This page is part of ?[Sample Letter]?".
+    data = make_pdf(lambda p: p.insert_text((72, 72), "Terms"))
+    out, _ = pe.append_signature_page(
+        data, [("spouse", "Client Spouse’s Name")], title="[Sample Letter]"
+    )
+    with pymupdf.open(stream=out, filetype="pdf") as doc:
+        text = " ".join(doc[1].get_text().split())
+    assert '"[Sample Letter]"' in text and "Client Spouse's Name" in text and "?" not in text
+
+
 def test_append_signature_page_overflows_onto_more_pages() -> None:
     data = make_pdf(lambda p: None)
     signers = [(f"party_{i}", f"Party {i}") for i in range(8)]
@@ -320,6 +331,48 @@ def test_removing_placeholders_keeps_the_words_on_the_lines_around_them(
         words = [w[4] for w in doc[0].get_text("words") if w[4] != "Z"]
     kept = " ".join(lines).replace("[CPA Firm]", "").replace("[Client Name]", "").split()
     assert sorted(words) == sorted(kept)
+
+
+def test_a_long_value_runs_on_into_empty_space_but_never_over_text() -> None:
+    # Blind test, accounting letter: "[Date]" alone on its line became a 4 pt "November 20, 2026".
+    rows = ["[Date]", "the [Year] tax year and our duties", "in [County], [State] courts only"]
+
+    def draw(page: pymupdf.Page) -> None:
+        for i, text in enumerate(rows):
+            page.insert_text((72, 100 + 30 * i), text, fontsize=12, fontname="tiro")
+
+    data = make_pdf(draw)
+    holders = {s.text: s for s in slots_of(data) if s.kind == "placeholder"}
+    values = {
+        "[Date]": "November 20, 2026",
+        "[Year]": "Sample value",
+        "[County]": "Maricopa County",
+        "[State]": "Arizona",
+    }
+
+    def stamped(room: bool) -> tuple[dict[str, tuple[float, float, float]], dict[str, float]]:
+        stamps = [
+            pe.Stamp(1, holders[k].bbox, "text", v, redact=holders[k].redact, room=room)
+            for k, v in values.items()
+        ]
+        with pymupdf.open(stream=pe.stamp(data, stamps), filetype="pdf") as doc:
+            spans = {
+                s["text"]: (s["size"], s["bbox"][0], s["bbox"][2])
+                for b in doc[0].get_text("dict")["blocks"]
+                for ln in b.get("lines", [])
+                for s in ln["spans"]
+                if s["font"].startswith("Helv")
+            }
+            starts = {w[4]: w[0] for w in doc[0].get_text("words")}
+        return spans, starts
+
+    tight, _ = stamped(room=False)  # a signer's value keeps to its box
+    assert tight["November 20, 2026"][0] < 5
+    spans, starts = stamped(room=True)
+    assert spans["November 20, 2026"][0] >= 10  # alone on its line: full size
+    assert spans["Sample value"][2] <= starts["tax"]  # mid-sentence: stops before the next word
+    assert spans["Maricopa County"][2] <= starts[","] + 0.5
+    assert spans["Arizona"][2] <= starts["courts"]
 
 
 def test_party_detail_labels_with_empty_space_are_blanks() -> None:

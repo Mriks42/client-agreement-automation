@@ -159,7 +159,12 @@ def _value_stamp(f: dict[str, Any], value: Any) -> pdf_engine.Stamp | None:
     if f["type"] == "date":
         text = format_date(text)
     return pdf_engine.Stamp(
-        f["page"], rect, "text", value=text, redact=[_box(r) for r in f.get("redact", [])]
+        f["page"],
+        rect,
+        "text",
+        value=text,
+        redact=[_box(r) for r in f.get("redact", [])],
+        room=f["filled_by"] == SENDER,
     )
 
 

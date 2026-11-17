@@ -10,7 +10,7 @@ import re
 import unicodedata
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Literal
+from typing import Any, Literal
 
 import pymupdf
 
@@ -742,7 +742,7 @@ def append_signature_page(
                 page = doc.new_page(width=width, height=height)
                 y = _signature_page_header(page, title, original_pages, left, right)
             page_no = page.number + 1
-            page.insert_text((left, y + 14), label[:80], fontname="hebo", fontsize=11.5)
+            page.insert_text((left, y + 14), latin1(label[:80]), fontname="hebo", fontsize=11.5)
             sig_y = y + 64
             page.draw_line((left, sig_y), (mid - 18, sig_y), width=0.6)
             page.insert_text((left, sig_y + 11), "Signature", fontname="helv", fontsize=8)
@@ -778,7 +778,11 @@ def _signature_page_header(
         "sign the document electronically."
     )
     page.insert_textbox(
-        pymupdf.Rect(left, 96, right, 140), note, fontname="helv", fontsize=9.5, lineheight=1.3
+        pymupdf.Rect(left, 96, right, 140),
+        latin1(note),
+        fontname="helv",
+        fontsize=9.5,
+        lineheight=1.3,
     )
     return 150.0
 
@@ -793,6 +797,10 @@ class Stamp:
     value: str = ""  # the text, or the signer's name for a typed signature
     image: bytes | None = None  # PNG of a drawn signature
     redact: list[Box] = field(default_factory=list)
+    # May run on into empty space to its right on the same line instead of shrinking, like a
+    # date replacing "[Date]". For the sender's values: a signer's are drawn on the signing page
+    # at the size the PDF will use, so they keep to their box.
+    room: bool = False
 
 
 _INK = (0.06, 0.14, 0.42)  # dark blue, so signer marks stand out from printed text
@@ -820,8 +828,11 @@ def stamp(data: bytes, stamps: list[Stamp]) -> bytes:
             for w in list(page.widgets() or []):
                 if any(_prect(s.rect).intersects(w.rect) for s in items):
                     page.delete_widget(w)
+            words = page.get_text("words") if any(s.room for s in items) else []
+            widgets = [Box(*w.rect) for w in page.widgets() or []]
             for s in items:
-                _write(page, s)
+                others = widgets + [o.rect for o in items if o is not s]
+                _write(page, s, _right_limit(page, s.rect, words, others) if s.room else None)
         return doc.tobytes(garbage=3, deflate=True)
 
 
@@ -876,7 +887,22 @@ def latin1(text: str) -> str:
     return "".join(out)
 
 
-def _write(page: pymupdf.Page, s: Stamp) -> None:
+def _right_limit(page: pymupdf.Page, r: Box, words: list[Any], others: list[Box]) -> float:
+    """How far right a one-line value written in `r` can run: to the next word, form field or
+    other value on its line, and never past the page's text column."""
+    right = min(page.rect.width - 36, max((w[2] for w in words), default=r.x1))
+    for x0, y0, _x1, y1, *_ in words:
+        # Same line: the word's middle is inside the field's height. (Text boxes are taller than
+        # the line spacing, so an overlap test would catch the lines above and below.)
+        if x0 >= r.x1 - 1 and r.y0 <= (y0 + y1) / 2 <= r.y1:
+            right = min(right, x0 - 3)
+    for b in others:
+        if b.x0 >= r.x1 - 1 and min(b.y1, r.y1) - max(b.y0, r.y0) > 0.3 * r.height:
+            right = min(right, b.x0 - 3)
+    return max(right, r.x1)
+
+
+def _write(page: pymupdf.Page, s: Stamp, right: float | None = None) -> None:
     r = _prect(s.rect)
     if s.kind == "check":
         inset = min(r.width, r.height) * 0.2
@@ -902,8 +928,9 @@ def _write(page: pymupdf.Page, s: Stamp) -> None:
         r.height * (0.8 if s.kind == "signature" else 0.72), 20.0 if font == "tiit" else 11.0
     )
     width = pymupdf.get_text_length(text, fontname=font, fontsize=size)
-    if width > r.width - 3:
-        size = max(4.0, size * (r.width - 3) / width)
+    room = r.width if right is None else max(r.width, right - r.x0)
+    if width > room - 3:
+        size = max(4.0, size * (room - 3) / width)
     baseline = r.y1 - max(1.5, r.height * 0.18)
     page.insert_text((r.x0 + 1.5, baseline), text, fontsize=size, fontname=font, color=color)
 
