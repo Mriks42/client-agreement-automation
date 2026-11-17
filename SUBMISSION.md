@@ -45,6 +45,7 @@ Kickoff then emails each signer in order, chases them (day 2 and day 5), and col
 | **Signed PDF with an audit certificate and SHA-256 fingerprints**, emailed to everyone | Proof of who signed, when, from where, and that the document hasn't changed since. |
 | **"Signed: ready to start work"** on each file, and a dashboard of every file | That's the outcome the client asked for: knowing when work can start. |
 | **Self-serve signup with each company's data kept separate**; emails in the firm's name | "Sell it to every other company in our industry." |
+| **Team members**: invite colleagues by email, each with their own login; remove them in one click | Any firm has more than one person. Each file shows who sent it, and a person who leaves loses access at once. |
 | **Public API with API keys and idempotency, plus signed webhooks** with retries and a delivery log | "Every file" becomes automatic: the firm's CRM opens files and hears when they're signed. |
 | **MCP server** for Claude and other AI assistants | Astra's world is AI assistants using tools through MCP. An assistant can prepare drafts, track signatures and fetch signed copies, but a person still sends. |
 | **A durable job queue for everything slow or external**; every failure shown with a next step; monitoring | A slow AI or a hiccup at Gmail never breaks a click. Nothing fails silently. |
@@ -55,12 +56,11 @@ Kickoff then emails each signer in order, chases them (day 2 and day 5), and col
 | Left out | Why |
 |---|---|
 | DocuSign or another e-signature provider | The product is *getting the agreement signed on every file*. Capturing a signature is the easy part. Provider fees would cut into Astra's resale margin, and the provider would still need to be told where the fields go. |
-| Several logins per company (team members) | Cut for time. Each company has one login. It's the first item on the list for what's next. |
 | Sending without a person, for files opened by the API or MCP | A person confirms every send, by design: AI output and automated triggers prepare, people approve. |
 | Logo and colour branding | The firm's name already appears on every email and the signing page. Cut for time. |
 | A public "verify a PDF" page | The certificate and the SHA-256 printed in every email and on the file page already let anyone check a copy. |
 | Bounce detection | Copy signing link, the check-spam hint and Resend cover a lost email. |
-| Billing, SSO and fine-grained roles | No pricing has been decided, and no buyer needs them yet. |
+| Billing, SSO and fine-grained roles | No pricing has been decided, and no buyer needs them yet. Every team member is an admin. |
 | Native CRM connectors (HubSpot, Clio, ...) | The API, webhooks and MCP connect to any system, and Zapier or Make can use them today. |
 | SMS codes and ID checks | Out of proportion for a client agreement. An emailed link with consent and an audit trail is the industry default. |
 | Qualified (PAdES/eIDAS) signatures | US ESIGN/UETA is the baseline. Revisit for EU buyers. |
