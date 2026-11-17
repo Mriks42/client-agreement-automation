@@ -4,6 +4,7 @@ Events are only ever inserted. A correction is a new event, never an edit. Event
 job carry a `key` (unique), so a job that runs twice doesn't record the same thing twice.
 """
 
+import logging
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
@@ -12,8 +13,11 @@ from bson import ObjectId
 from pymongo.errors import DuplicateKeyError
 
 from app.repo import Tenant
+from app.services import webhooks
 from app.services.accounts import CurrentUser
 from app.worker.queue import utcnow
+
+log = logging.getLogger(__name__)
 
 SYSTEM: dict[str, Any] = {"kind": "system", "name": "Kickoff"}
 
@@ -70,10 +74,16 @@ async def record(
     if key is not None:
         doc["key"] = key
     try:
-        await tenant.insert("events", doc)
+        event_id = await tenant.insert("events", doc)
     except DuplicateKeyError:
         if key is None:
             raise
+        return  # a job ran twice: recorded (and announced) the first time
+    try:
+        await webhooks.on_event(tenant, file_id, event_id, doc)
+    except Exception:
+        # Telling the firm's other systems must never undo or block what just happened here.
+        log.exception("couldn't queue a webhook delivery", extra={"event_type": type})
 
 
 async def for_file(tenant: Tenant, file_id: ObjectId) -> list[dict[str, Any]]:

@@ -16,7 +16,8 @@ from fastapi import FastAPI, HTTPException, Request, Response
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
-from app.api import auth, files, health, ops, signing, templates
+from app.api import auth, files, health, ops, signing, templates, v1
+from app.api import settings as settings_api
 from app.config import Settings, get_settings
 from app.db import connect
 from app.logging_setup import configure_logging, request_id_var
@@ -130,6 +131,8 @@ def create_app(settings: Settings | None = None, email: EmailSender | None = Non
     app.include_router(templates.router)
     app.include_router(files.router)
     app.include_router(signing.router)
+    app.include_router(settings_api.router)
+    app.include_router(v1.router)
 
     _mount_spa(app, settings)
     return app
@@ -196,4 +199,9 @@ def _scrub_event(event: Any, hint: Any) -> Any:
     if isinstance(request.get("url"), str):
         parts = urlsplit(request["url"])
         request["url"] = parts._replace(path=redact_path(parts.path)).geturl()
+    headers = request.get("headers")
+    if isinstance(headers, dict):  # API keys and session cookies, whatever the SDK's defaults
+        for name in list(headers):
+            if name.lower() in ("authorization", "cookie", "x-kickoff-signature"):
+                headers[name] = "[Filtered]"
     return event

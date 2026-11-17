@@ -133,8 +133,15 @@ def missing_values(file: dict[str, Any]) -> list[str]:
 
 # ---- create and edit ---------------------------------------------------------------------------
 async def create(
-    tenant: Tenant, user: CurrentUser, template_id: str, body: FileIn
+    tenant: Tenant,
+    user: CurrentUser,
+    template_id: str,
+    body: FileIn,
+    *,
+    api: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
+    """A draft. `api` (key id and name, idempotency key, metadata) marks one opened through the
+    public API: it waits as a draft for a person to check the preview and send it."""
     tpl = await tenant.get("templates", template_id)
     if tpl is None:
         raise NotFound(template_id)
@@ -166,14 +173,12 @@ async def create(
         "created_at": now,
         "updated_at": now,
     }
+    data: dict[str, Any] = {"agreement": tpl["name"], "version": tpl["version"]}
+    if api is not None:
+        doc["api"] = api
+        data["api_key"] = api["key_name"]
     file_id = await tenant.insert("files", doc)
-    await events.record(
-        tenant,
-        file_id,
-        "created",
-        actor=events.by_user(user),
-        data={"agreement": tpl["name"], "version": tpl["version"]},
-    )
+    await events.record(tenant, file_id, "created", actor=events.by_user(user), data=data)
     doc["_id"] = file_id
     doc["org_id"] = tenant.org_id
     return doc
@@ -498,6 +503,7 @@ def summary(f: dict[str, Any]) -> dict[str, Any]:
         "updated_at": f["updated_at"],
         "sent_at": f.get("sent_at"),
         "completed_at": f.get("completed_at"),
+        "created_via": "api" if f.get("api") else "app",
     }
 
 
@@ -554,5 +560,11 @@ def detail(f: dict[str, Any], evts: list[dict[str, Any]]) -> dict[str, Any]:
         "finalized_at": f.get("finalized_at"),
         "final_sha256": f.get("final_sha256"),
         "finalize_error": (f.get("finalize_error") or {}).get("error"),
+        "api": {
+            "key_name": f["api"]["key_name"],
+            "metadata": f["api"].get("metadata") or {},
+        }
+        if f.get("api")
+        else None,
         "events": [events.public(e) for e in evts],
     }

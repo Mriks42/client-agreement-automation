@@ -101,3 +101,12 @@ async def find_file_by_signing_token(db: AsyncDatabase, token_hash: str) -> dict
         return None
     file: dict[str, Any] | None = await db.files.find_one({"recipients.token_hashes": token_hash})
     return file
+
+
+async def find_api_key(db: AsyncDatabase, key_hash: str) -> dict[str, Any] | None:
+    """Like a signing token, an API key is its own credential, so this lookup isn't scoped by
+    org: the key's record says which org it belongs to, and the caller scopes everything after
+    this to that org. Only the key's SHA-256 is stored."""
+    if len(key_hash) != 64:
+        return None
+    return await db.api_keys.find_one({"key_hash": key_hash})
