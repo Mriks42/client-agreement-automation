@@ -181,7 +181,8 @@ async def test_webhooks_are_signed_retried_and_logged(
     await w.drain()
     [failed] = (await client.get("/api/settings/webhook/deliveries")).json()
     assert failed["event_type"] == "file.sent" and failed["status"] == "pending"
-    assert failed["status_code"] == 500 and "HTTP 500" in failed["last_error"]
+    assert failed["status_code"] == 500
+    assert failed["last_error"] == "The endpoint answered HTTP 500."
     await db.jobs.update_many({"type": webhooks.DELIVER}, {"$set": {"run_at": utcnow()}})
     await w.drain()  # the retry
     assert len(receiver.requests) == 2

@@ -198,13 +198,23 @@ async def deliveries(tenant: Tenant, limit: int = 25) -> list[dict[str, Any]]:
                 "status": job["status"],
                 "attempts": job.get("attempts", 0),
                 "status_code": (job.get("result") or {}).get("status_code"),
-                "last_error": job.get("last_error"),
+                "last_error": _readable(job.get("last_error")),
                 "created_at": job["created_at"],
                 "updated_at": job["updated_at"],
                 "next_attempt_at": job["run_at"] if job["status"] == "pending" else None,
             }
         )
     return out
+
+
+def _readable(error: str | None) -> str | None:
+    """The worker stores "ClassName: message"; people only need the message."""
+    if error is None:
+        return None
+    for prefix in ("WebhookFailed: ", "PermanentJobError: "):
+        if error.startswith(prefix):
+            return error[len(prefix) :]
+    return error
 
 
 # ---- the delivery job ---------------------------------------------------------------------------
