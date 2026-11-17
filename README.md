@@ -12,7 +12,7 @@ A firm uploads its standard client agreement once. AI finds where every blank an
 1. **Upload your agreement once,** as a PDF or Word (.docx) file. Claude proposes every blank and signature line, and who fills each one: the firm, or which signer. A person checks the fields in the editor, adjusts them if needed, and approves. A scanned agreement gets a signature page, and fields can be placed by hand.
 2. **Open a file for each client.** Fill in that client's details, look over the exact PDF, and send it. Every client you send to is saved, so next time you pick them from the **Client** search and their name, email, company and address fill in. The job's dates and fees, and the firm's own details, are never copied from an old file.
 3. **Signers sign in order,** from an emailed link, on a phone or a computer. They agree to sign electronically, fill in their parts, and type or draw a signature. Reminders go out on day 2 and day 5, and links expire after 30 days. The firm can copy a signing link, resend, correct an email address, or void the file.
-4. **Everyone gets the signed PDF** with an audit certificate showing who signed, when, from where, and the SHA-256 fingerprints. The file shows "Signed: ready to start work".
+4. **Everyone gets the signed PDF** with an audit certificate showing who signed, when, from where, and the SHA-256 fingerprints. The file shows "Signed: ready to start work". Anyone can check a copy at [/verify](https://kickoff-r713.onrender.com/verify): the browser works out the PDF's fingerprint, so the PDF never leaves their device.
 5. **Other systems can join in.** With an API key, a CRM or practice manager can open files. Signed webhooks report when each file is sent, signed and complete.
 6. **A whole team can use it.** Invite colleagues from Settings. Each gets their own login, and every file shows who sent it.
 7. **AI assistants can use it too.** The [Kickoff MCP server](mcp-server/README.md) lets Claude (or any MCP client) prepare a draft for a client, say which agreements are still waiting, and save the signed PDF. A person still checks and sends every draft.
@@ -156,6 +156,7 @@ client-agreement-automation/
 | Open a file, preview, send | `files.py`, `clients.py`, `pdf_engine.py` |
 | Emails, reminders, signing | `signing.py`, `email/`, `frontend/src/pages/SignPage.tsx` |
 | Signed PDF and certificate | `finalize.py`, `pdf_engine.py` |
+| Checking a copy (public) | `api/verify.py`, `frontend/src/pages/VerifyPage.tsx` |
 | Telling other systems | `webhooks.py`, `api/v1.py` |
 | AI assistants (MCP) | `mcp-server/kickoff_mcp/server.py` |
 

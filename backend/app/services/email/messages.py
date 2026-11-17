@@ -140,10 +140,18 @@ def declined_notice(
     return Composed(subject, text, html)
 
 
-def _check_copy(sha256: str) -> str:
+def _check_copy(sha256: str, verify_url: str) -> str:
     return (
-        "To check that a copy hasn't been changed, compare its SHA-256 with this one "
-        f"(the certificate explains how): {sha256}"
+        f"To check that a copy hasn't been changed, open {verify_url} and choose the PDF "
+        f"(it never leaves your device), or compare its SHA-256 with this one: {sha256}"
+    )
+
+
+def _check_copy_html(sha256: str, verify_url: str) -> str:
+    link = f'<a href="{escape(verify_url)}" style="color:#2f5bea">{escape(verify_url)}</a>'
+    return (
+        f"To check that a copy hasn't been changed, open {link} and choose the PDF "
+        f"(it never leaves your device), or compare its SHA-256 with this one: {escape(sha256)}"
     )
 
 
@@ -159,6 +167,7 @@ def signed_copy(
     sender_name: str,
     parties: list[str],
     sha256: str,
+    verify_url: str,
     product: str,
 ) -> Composed:
     """To each signer when everyone has signed, with the signed PDF attached."""
@@ -171,14 +180,14 @@ def signed_copy(
     )
     contact = f"Questions? Reply to this email to reach {sender_name} at {org_name}."
     footer_text = f"Sent by {product} on behalf of {org_name}."
-    check = _check_copy(sha256)
+    check = _check_copy(sha256, verify_url)
     text = "\n\n".join([f"Hi {first},", lead, attached, contact, check, "--", footer_text]) + "\n"
     html = _html(
         preheader=lead,
         heading=f"Signed: {agreement_name}",
         paras=[escape(f"Hi {first},"), escape(lead), escape(attached), escape(contact)],
         button=None,
-        footer=escape(check) + "<br><br>" + escape(footer_text),
+        footer=_check_copy_html(sha256, verify_url) + "<br><br>" + escape(footer_text),
     )
     return Composed(subject, text, html)
 
@@ -191,6 +200,7 @@ def completed_notice(
     parties: list[str],
     sha256: str,
     file_url: str,
+    verify_url: str,
     product: str,
 ) -> Composed:
     """To the sender when everyone has signed, with the signed PDF attached."""
@@ -201,7 +211,7 @@ def completed_notice(
         "signed, when, and how. Each signer has been emailed their own copy, and it's also on "
         "the file page."
     )
-    check = _check_copy(sha256)
+    check = _check_copy(sha256, verify_url)
     text = (
         f"{lead}\n\n{attached}\n\nOpen the file:\n{file_url}\n\n{check}\n\n"
         f"--\n{product} for {org_name}\n"
@@ -211,7 +221,9 @@ def completed_notice(
         heading="Signed: ready to start work",
         paras=[escape(lead), escape(attached)],
         button=("Open the file", file_url),
-        footer=escape(check) + "<br><br>" + escape(f"{product} for {org_name}"),
+        footer=_check_copy_html(sha256, verify_url)
+        + "<br><br>"
+        + escape(f"{product} for {org_name}"),
     )
     return Composed(subject, text, html)
 

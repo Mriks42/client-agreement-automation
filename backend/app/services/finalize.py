@@ -393,6 +393,7 @@ async def deliver(tenant: Tenant, settings: Settings, file: dict[str, Any], org_
             sender_name=file["created_by_name"],
             parties=parties,
             sha256=file["final_sha256"],
+            verify_url=signing.verify_url(settings),
             product=product,
         )
         await enqueue_email(
@@ -417,6 +418,7 @@ async def deliver(tenant: Tenant, settings: Settings, file: dict[str, Any], org_
         parties=parties,
         sha256=file["final_sha256"],
         file_url=signing.file_url(settings, file_id),
+        verify_url=signing.verify_url(settings),
         product=product,
     )
     await enqueue_email(

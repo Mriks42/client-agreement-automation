@@ -48,6 +48,7 @@ Claude is used in one place, once per agreement. When the firm uploads it, Claud
 | **Signing in order** (client first, then the firm countersigns), with **Sign now** for the firm's own signer on the file page | Most client agreements need both parties, and the firm signs last, usually while already working in Kickoff. |
 | **Reminders, 30-day expiry, resend, correct an email, copy link, void** | Chasing signatures is the manual work the client complained about. Copy link is the way out when an email lands in spam. |
 | **Signed PDF with an audit certificate and SHA-256 fingerprints**, emailed to everyone | Proof of who signed, when, from where, and that the document hasn't changed since. |
+| **A public verify page**: anyone drops in a signed PDF and sees whether it's the unchanged original | A client, auditor or court can check a copy in seconds without asking the firm. The browser computes the fingerprint, so the PDF never leaves their device, and the page shows only what the PDF itself shows. |
 | **"Signed: ready to start work"** on each file, and a dashboard of every file | That's the outcome the client asked for: knowing when work can start. |
 | **Self-serve signup with each company's data kept separate**; emails in the firm's name | "Sell it to every other company in our industry." |
 | **Team members**: invite colleagues by email, each with their own login; remove them in one click | Any firm has more than one person. Each file shows who sent it, and a person who leaves loses access at once. |
@@ -63,7 +64,6 @@ Claude is used in one place, once per agreement. When the firm uploads it, Claud
 | DocuSign or another e-signature provider | The product is *getting the agreement signed on every file*. Capturing a signature is the easy part. Provider fees would cut into Astra's resale margin, and the provider would still need to be told where the fields go. |
 | Sending without a person, for files opened by the API or MCP | A person confirms every send, by design: AI output and automated triggers prepare, people approve. |
 | Logo and colour branding | The firm's name already appears on every email and the signing page. Cut for time. |
-| A public "verify a PDF" page | The certificate and the SHA-256 printed in every email and on the file page already let anyone check a copy. |
 | Bounce detection | Copy signing link, the check-spam hint and Resend cover a lost email. |
 | Billing, SSO and fine-grained roles | No pricing has been decided, and no buyer needs them yet. Every team member is an admin. |
 | Native CRM connectors (HubSpot, Clio, ...) | The API, webhooks and MCP connect to any system, and Zapier or Make can use them today. |

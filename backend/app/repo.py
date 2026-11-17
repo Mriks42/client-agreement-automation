@@ -123,6 +123,16 @@ async def find_file_by_signing_token(db: AsyncDatabase, token_hash: str) -> dict
     return file
 
 
+async def find_file_by_final_sha256(db: AsyncDatabase, sha256: str) -> dict[str, Any] | None:
+    """The public verify page: a signed PDF's own SHA-256 finds its file, whichever company it
+    belongs to. Only someone holding that exact PDF knows the hash, and they already see
+    everything the page shows (the agreement, the firm, the signers' names, the date)."""
+    if len(sha256) != 64:
+        return None
+    file: dict[str, Any] | None = await db.files.find_one({"final_sha256": sha256})
+    return file
+
+
 async def find_api_key(db: AsyncDatabase, key_hash: str) -> dict[str, Any] | None:
     """Like a signing token, an API key is its own credential, so this lookup isn't scoped by
     org: the key's record says which org it belongs to, and the caller scopes everything after

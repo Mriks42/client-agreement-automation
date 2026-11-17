@@ -80,6 +80,10 @@ def file_url(settings: Settings, file_id: ObjectId | str) -> str:
     return f"{settings.app_base_url.rstrip('/')}/files/{file_id}"
 
 
+def verify_url(settings: Settings) -> str:
+    return f"{settings.app_base_url.rstrip('/')}/verify"
+
+
 def push_token(i: int, token_hash: str) -> dict[str, Any]:
     return {f"recipients.{i}.token_hashes": {"$each": [token_hash], "$slice": -MAX_TOKENS}}
 

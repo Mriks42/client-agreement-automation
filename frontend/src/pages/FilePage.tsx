@@ -304,6 +304,12 @@ function Completed({ file: f }: { file: FileDetail }) {
           <p className="mt-3 text-xs">
             SHA-256 of the signed PDF:{' '}
             <span className="font-mono break-all select-all">{f.final_sha256}</span>
+            <br />
+            Anyone can check a copy at{' '}
+            <a href="/verify" target="_blank" rel="noreferrer" className="font-medium underline">
+              {window.location.host}/verify
+            </a>
+            .
           </p>
         )}
       </Alert>

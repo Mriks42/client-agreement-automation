@@ -54,6 +54,10 @@ async def ensure_indexes(database: Database) -> None:
     await db.templates.create_index([("org_id", 1), ("updated_at", -1)])
     await db.files.create_index([("org_id", 1), ("updated_at", -1)])
     await db.files.create_index("recipients.token_hashes")
+    # The public verify page looks a signed PDF up by its SHA-256.
+    await db.files.create_index(
+        "final_sha256", partialFilterExpression={"final_sha256": {"$type": "string"}}
+    )
     await db.events.create_index([("org_id", 1), ("file_id", 1), ("at", 1)])
     await db.events.create_index(
         "key", unique=True, partialFilterExpression={"key": {"$type": "string"}}

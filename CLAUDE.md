@@ -17,7 +17,7 @@ _Last updated: Tue Nov 17, 2026, about 06:20 MST. Everything built so far is ver
    - The picker is optional: if it's ignored, the form behaves exactly as today.
    - Tests: matching across two agreements, firm-side fields left untouched, job fields left empty, cross-org 404.
    - Later, if there's time: a small Clients list to edit or delete entries.
-2. **Verify page** (about 1 h). This was D7's cut verify page.
+2. **Verify page** (about 1 h). This was D7's cut verify page. **Built Nov 17 (`api/verify.py`, `repo.find_file_by_final_sha256` (the fourth unscoped lookup), `VerifyPage.tsx`, `test_verify.py`).**
    - A public `/verify` page. The browser computes the PDF's SHA-256 with Web Crypto, so the PDF never leaves the device. It calls `GET /api/verify/{sha256}`, an unscoped lookup by `files.final_sha256`; add an index.
    - On a match, show the agreement, the file title, the firm, the completion date and the signers' names. Anyone holding that exact PDF already sees all of that.
    - Otherwise: "Not a match: this copy was changed, or wasn't signed with Kickoff."

@@ -16,6 +16,7 @@ import { TemplatePage } from './pages/TemplatePage'
 import { SettingsPage } from './pages/SettingsPage'
 import { TemplatesPage } from './pages/TemplatesPage'
 import { UploadPage } from './pages/UploadPage'
+import { VerifyPage } from './pages/VerifyPage'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -33,6 +34,7 @@ const router = createBrowserRouter([
   { path: '/signup', element: <SignupPage /> },
   { path: '/join/:token', element: <JoinPage /> },
   { path: '/sign/:token', element: <SignPage /> },
+  { path: '/verify', element: <VerifyPage /> },
   {
     element: <AppShell />,
     children: [
