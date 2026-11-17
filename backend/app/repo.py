@@ -23,6 +23,7 @@ TENANT_COLLECTIONS = frozenset(
         "webhook_endpoints",
         "users",
         "invites",
+        "clients",
     }
 )
 
@@ -100,6 +101,16 @@ class Tenant:
         return await self._coll(coll).find_one_and_update(
             self.scope({**expect, "_id": oid}), update, return_document=ReturnDocument.AFTER
         )
+
+    async def upsert(
+        self, coll: str, match: dict[str, Any], update: dict[str, Any]
+    ) -> dict[str, Any]:
+        """Update the one document matching `match` in this org, or create it (the org_id and
+        the equality fields of `match` are set on insert). Needs a unique index on `match`."""
+        doc: dict[str, Any] = await self._coll(coll).find_one_and_update(
+            self.scope(match), update, upsert=True, return_document=ReturnDocument.AFTER
+        )
+        return doc
 
 
 async def find_file_by_signing_token(db: AsyncDatabase, token_hash: str) -> dict[str, Any] | None:

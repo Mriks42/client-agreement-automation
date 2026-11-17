@@ -8,7 +8,7 @@ _Last updated: Tue Nov 17, 2026, about 06:20 MST. Everything built so far is ver
 
 **Next session: build these four, in this order, approved by the owner on Nov 17.** Finish, deploy and verify each one live before starting the next. Stop adding features at 21:30 MST and drop whatever isn't solid by then; recording a cut in DECISIONS.md beats shipping something half-working. Anthony's path (sign up, upload, approve, new file, send, sign, signed PDF) must keep working after every deploy, so run `scripts.live_check` after each one.
 
-1. **Saved clients** (an address book, about 2 h). Design agreed with the owner:
+1. **Saved clients** (an address book, about 2 h). **Built Nov 17 (`services/clients.py`, `api/clients.py`, the Client picker in `NewFilePage.tsx`, 4 tests in `test_clients.py`).** Design agreed with the owner:
    - A tenant collection `clients` holds company, contact name, contact email, address, phone and title.
    - It's saved and updated automatically when a file is **sent**: from the client-kind signer's name and email, plus the values of the *client-side identity* fields.
    - On **New file**, a "Client" search box at the top. Picking a client fills the client signer's name and email, and the client-side identity fields.
@@ -245,6 +245,7 @@ backend/
       pdf_engine.py      Extract lines/slots, render PNGs, stamp fields, append pages (the only PyMuPDF import)
       detection/         schema.py, prompt.py, llm.py, heuristics.py, mapper.py, pipeline.py (analyze: the entry point)
       files.py           Files: create from an approved template, edit a draft, prepare (preview), send, copy link, resend, void
+      clients.py         Saved clients: saved on send (remember), label-category matching (identity_inputs), fill for New file
       signing.py         File/recipient state machine, routing, tokens, the signer's steps, signing email/expiry jobs
       events.py          Append-only audit events
       errors.py          NotFound / Conflict / Invalid, mapped to 404 / 409 / 422 by the routers

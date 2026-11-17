@@ -16,7 +16,7 @@ from fastapi import FastAPI, HTTPException, Request, Response
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
-from app.api import auth, files, health, ops, signing, templates, v1
+from app.api import auth, clients, files, health, ops, signing, templates, v1
 from app.api import settings as settings_api
 from app.config import Settings, get_settings
 from app.db import connect
@@ -130,6 +130,7 @@ def create_app(settings: Settings | None = None, email: EmailSender | None = Non
     app.include_router(auth.router)
     app.include_router(templates.router)
     app.include_router(files.router)
+    app.include_router(clients.router)
     app.include_router(signing.router)
     app.include_router(settings_api.router)
     app.include_router(v1.router)

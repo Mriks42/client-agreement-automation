@@ -1,8 +1,17 @@
-import { useState, type FormEvent } from 'react'
+import { useEffect, useState, type FormEvent, type KeyboardEvent } from 'react'
 import { Link, Navigate, useNavigate, useParams, useSearchParams } from 'react-router'
 import { errorProblems } from '../api/client'
-import { useCreateFile, useEditFile, useFile, useMe, useTemplate, useTemplates } from '../api/hooks'
-import type { FileInput, Role, SenderInput } from '../api/types'
+import {
+  useClientFill,
+  useClients,
+  useCreateFile,
+  useEditFile,
+  useFile,
+  useMe,
+  useTemplate,
+  useTemplates,
+} from '../api/hooks'
+import type { ClientFill, FileInput, Role, SavedClient, SenderInput } from '../api/types'
 import { Alert, Button, Card, FullPageSpinner, TextArea, TextInput } from '../components/ui'
 import { ordinal } from '../lib/fields'
 
@@ -83,6 +92,7 @@ function CreateForm({ templateId }: { templateId: string }) {
         inputs={t.sender_inputs}
         roles={t.roles}
         initial={{ title: '', values: {}, people }}
+        pickClientFor={t.id}
         busy={create.isPending}
         error={create.error}
         onSubmit={(body) =>
@@ -154,6 +164,7 @@ function FileForm({
   inputs,
   roles,
   initial,
+  pickClientFor,
   busy,
   error,
   onSubmit,
@@ -161,6 +172,8 @@ function FileForm({
   inputs: SenderInput[]
   roles: Role[]
   initial: { title: string; values: Values; people: People }
+  /** New file only: the agreement a saved client's details are matched to. */
+  pickClientFor?: string
   busy: boolean
   error: Error | null
   onSubmit: (body: FileInput) => void
@@ -181,9 +194,16 @@ function FileForm({
   }
   const setPerson = (role: string, patch: Partial<{ name: string; email: string }>) =>
     setPeople((p) => ({ ...p, [role]: { ...(p[role] ?? { name: '', email: '' }), ...patch } }))
+  // Picking a saved client fills the client signer and the client's identity details only;
+  // the server never returns dates, fees or the firm's own fields.
+  const applyClient = (fill: ClientFill) => {
+    if (fill.recipient) setPerson(fill.recipient.role, { name: fill.recipient.name, email: fill.recipient.email })
+    setValues((v) => ({ ...v, ...fill.values }))
+  }
 
   return (
     <form onSubmit={submit} className="space-y-4">
+      {pickClientFor && <ClientPicker templateId={pickClientFor} onPick={applyClient} />}
       <Card>
         <h2 className="text-sm font-semibold">Who signs, in order</h2>
         <p className="mt-0.5 text-xs text-slate-500">
@@ -263,6 +283,129 @@ function FileForm({
         </Button>
       </div>
     </form>
+  )
+}
+
+/** "Client" search at the top of New file. Hidden until the company has sent a file, so the form
+ * is exactly as before; ignoring it changes nothing. */
+function ClientPicker({ templateId, onPick }: { templateId: string; onPick: (fill: ClientFill) => void }) {
+  const [q, setQ] = useState('')
+  const [term, setTerm] = useState('')
+  const [open, setOpen] = useState(false)
+  const [active, setActive] = useState(0)
+  const [picked, setPicked] = useState<ClientFill | null>(null)
+  useEffect(() => {
+    const t = setTimeout(() => setTerm(q.trim()), 200)
+    return () => clearTimeout(t)
+  }, [q])
+  const recent = useClients('')
+  const results = useClients(term)
+  const fill = useClientFill()
+  if (!recent.data?.length) return null
+
+  const list = results.data ?? []
+  const choose = (c: SavedClient) => {
+    setOpen(false)
+    fill.mutate(
+      { clientId: c.id, templateId },
+      {
+        onSuccess: (f) => {
+          onPick(f)
+          setPicked(f)
+          setQ('')
+        },
+      },
+    )
+  }
+  const onKey = (e: KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Escape') setOpen(false)
+    if (!list.length) return
+    if (e.key === 'ArrowDown') {
+      e.preventDefault()
+      setOpen(true)
+      setActive((i) => (i + 1) % list.length)
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault()
+      setActive((i) => (i - 1 + list.length) % list.length)
+    } else if (e.key === 'Enter' && open) {
+      e.preventDefault()
+      choose(list[Math.min(active, list.length - 1)])
+    }
+  }
+  const details = picked ? Object.keys(picked.values).length : 0
+
+  return (
+    <Card>
+      <label htmlFor="client-search" className="block text-sm font-semibold">
+        Client
+      </label>
+      <p className="mt-0.5 text-xs text-slate-500">
+        Optional. Pick a client you’ve sent to before to fill in their details. Dates, fees and other details for this
+        job are left for you.
+      </p>
+      <div className="relative mt-2">
+        <input
+          id="client-search"
+          role="combobox"
+          aria-expanded={open && list.length > 0}
+          aria-controls="client-results"
+          aria-autocomplete="list"
+          autoComplete="off"
+          placeholder="Search by company, name or email"
+          value={q}
+          onChange={(e) => {
+            setQ(e.target.value)
+            setOpen(true)
+            setActive(0)
+          }}
+          onFocus={() => setOpen(true)}
+          onBlur={() => setOpen(false)}
+          onKeyDown={onKey}
+          className="block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm shadow-xs focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20"
+        />
+        {open && (
+          <ul
+            id="client-results"
+            role="listbox"
+            className="absolute z-10 mt-1 max-h-72 w-full overflow-auto rounded-lg border border-slate-200 bg-white py-1 shadow-lg"
+          >
+            {list.length === 0 ? (
+              <li className="px-3 py-2 text-sm text-slate-500">{results.isFetching ? 'Searching…' : 'No saved client matches.'}</li>
+            ) : (
+              list.map((c, i) => (
+                <li
+                  key={c.id}
+                  role="option"
+                  aria-selected={i === active}
+                  // mousedown, so the click lands before the input's blur closes the list
+                  onMouseDown={(e) => {
+                    e.preventDefault()
+                    choose(c)
+                  }}
+                  onMouseEnter={() => setActive(i)}
+                  className={`cursor-pointer px-3 py-2 text-sm ${i === active ? 'bg-slate-100' : ''}`}
+                >
+                  <span className="block font-medium text-slate-900">{c.company || c.contact_name}</span>
+                  <span className="block text-xs text-slate-500">
+                    {c.company && c.contact_name ? `${c.contact_name} · ` : ''}
+                    {c.email}
+                  </span>
+                </li>
+              ))
+            )}
+          </ul>
+        )}
+      </div>
+      {fill.isPending && <p className="mt-2 text-xs text-slate-500">Filling in…</p>}
+      {fill.isError && <Alert className="mt-2">{fill.error.message}</Alert>}
+      {picked && !fill.isPending && (
+        <p className="mt-2 text-sm text-emerald-800" role="status">
+          Filled in from {picked.client.company || picked.client.contact_name}:{' '}
+          {picked.recipient ? 'the client signer’s name and email' : 'nothing for the signers'}
+          {details ? `, and ${details} detail${details === 1 ? '' : 's'} below` : ''}. Check them before previewing.
+        </p>
+      )}
+    </Card>
   )
 }
 

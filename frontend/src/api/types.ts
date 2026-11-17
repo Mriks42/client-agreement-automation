@@ -258,3 +258,23 @@ export type TeamInvite = {
 export type Team = { members: TeamMember[]; invites: TeamInvite[] }
 
 export type InvitePreview = { org_name: string; email: string; name: string | null; invited_by_name: string }
+
+/** A saved client: saved automatically when a file is sent, picked on New file. */
+export type SavedClient = {
+  id: string
+  company: string
+  contact_name: string
+  email: string
+  phone: string
+  address: string
+  title: string
+  files_sent: number
+  last_used_at: string | null
+}
+
+/** What picking a saved client fills on a new file for one agreement. */
+export type ClientFill = {
+  client: SavedClient
+  recipient: { role: string; name: string; email: string } | null
+  values: Record<string, string>
+}

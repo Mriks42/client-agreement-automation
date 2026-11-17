@@ -11,6 +11,7 @@ the first signer current; their email goes out from a job. See services/signing.
 
 import asyncio
 import hashlib
+import logging
 import re
 from dataclasses import dataclass
 from datetime import date, timedelta
@@ -21,11 +22,13 @@ from gridfs import AsyncGridFSBucket
 from app.config import Settings
 from app.domain.fields import sender_inputs
 from app.repo import Tenant
-from app.services import events, pdf_engine, signing, storage
+from app.services import clients, events, pdf_engine, signing, storage
 from app.services.accounts import CurrentUser, normalize_email
 from app.services.errors import Conflict, Invalid, NotFound
 from app.services.signing import LIVE, SIGNING_EMAIL
 from app.worker.queue import enqueue, utcnow
+
+log = logging.getLogger(__name__)
 
 DRAFT = "draft"
 MAX_TITLE = 120
@@ -330,6 +333,10 @@ async def send(
         dedupe_key=f"{signing.EXPIRE_FILE}:{file['_id']}",
         org_id=str(tenant.org_id),
     )
+    try:
+        await clients.remember(tenant, updated)
+    except Exception:  # the address book is a convenience: it never affects a send
+        log.exception("couldn't save the client", extra={"file_id": str(file["_id"])})
     return updated
 
 

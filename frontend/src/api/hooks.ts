@@ -1,7 +1,8 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, ApiError } from './client'
 import type {
   ApiKey,
+  ClientFill,
   Field,
   FileDetail,
   FileInput,
@@ -11,6 +12,7 @@ import type {
   Me,
   NewApiKey,
   Role,
+  SavedClient,
   SignView,
   Team,
   Template,
@@ -161,6 +163,23 @@ function useFileMutation<V>(fn: (vars: V) => Promise<FileDetail>) {
   })
 }
 
+// ---- saved clients --------------------------------------------------------------------------
+export function useClients(q: string) {
+  return useQuery({
+    queryKey: ['clients', q],
+    queryFn: () => api.get<SavedClient[]>(`/api/clients?q=${encodeURIComponent(q)}`),
+    placeholderData: keepPreviousData,
+    staleTime: 30_000,
+  })
+}
+
+export function useClientFill() {
+  return useMutation({
+    mutationFn: (vars: { clientId: string; templateId: string }) =>
+      api.get<ClientFill>(`/api/clients/${vars.clientId}/fill?template_id=${encodeURIComponent(vars.templateId)}`),
+  })
+}
+
 export function useCreateFile() {
   return useFileMutation((vars: FileInput & { template_id: string }) =>
     api.post<FileDetail>('/api/files', vars),
@@ -174,8 +193,10 @@ export function useEditFile(id: string) {
 }
 
 export function useSendFile(id: string) {
+  const qc = useQueryClient()
   return useFileMutation((vars: { revision: number }) =>
-    api.post<FileDetail>(`/api/files/${id}/send`, vars),
+    // Sending saves the client to the address book.
+    api.post<FileDetail>(`/api/files/${id}/send`, vars).finally(() => void qc.invalidateQueries({ queryKey: ['clients'] })),
   )
 }
 

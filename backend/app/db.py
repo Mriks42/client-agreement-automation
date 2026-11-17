@@ -71,4 +71,7 @@ async def ensure_indexes(database: Database) -> None:
         partialFilterExpression={"api.idempotency_key": {"$type": "string"}},
     )
     await db.jobs.create_index([("org_id", 1), ("type", 1), ("created_at", -1)])
+    # Saved clients: one per client email in each company, most recently used first.
+    await db.clients.create_index([("org_id", 1), ("email", 1)], unique=True)
+    await db.clients.create_index([("org_id", 1), ("last_used_at", -1)])
     log.info("indexes ensured")

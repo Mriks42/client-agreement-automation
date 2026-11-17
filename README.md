@@ -10,7 +10,7 @@ A firm uploads its standard client agreement once. AI finds where every blank an
 ## What it does
 
 1. **Upload your agreement once,** as a PDF or Word (.docx) file. Claude proposes every blank and signature line, and who fills each one: the firm, or which signer. A person checks the fields in the editor, adjusts them if needed, and approves. A scanned agreement gets a signature page, and fields can be placed by hand.
-2. **Open a file for each client.** Fill in that client's details, look over the exact PDF, and send it.
+2. **Open a file for each client.** Fill in that client's details, look over the exact PDF, and send it. Every client you send to is saved, so next time you pick them from the **Client** search and their name, email, company and address fill in. The job's dates and fees, and the firm's own details, are never copied from an old file.
 3. **Signers sign in order,** from an emailed link, on a phone or a computer. They agree to sign electronically, fill in their parts, and type or draw a signature. Reminders go out on day 2 and day 5, and links expire after 30 days. The firm can copy a signing link, resend, correct an email address, or void the file.
 4. **Everyone gets the signed PDF** with an audit certificate showing who signed, when, from where, and the SHA-256 fingerprints. The file shows "Signed: ready to start work".
 5. **Other systems can join in.** With an API key, a CRM or practice manager can open files. Signed webhooks report when each file is sent, signed and complete.
@@ -138,6 +138,7 @@ client-agreement-automation/
     │   ├── pdf_engine.py   Reads PDFs, finds blanks, writes values, adds the certificate
     │   ├── templates.py    Upload, analyze, review, approve
     │   ├── files.py        Open a file, preview, send, resend, void
+    │   ├── clients.py      Saved clients: saved on send, picked on New file
     │   ├── signing.py      Signing order, the signer's steps, reminders, expiry
     │   ├── finalize.py     The signed PDF, its certificate and fingerprints, emailed to everyone
     │   ├── email/          The email texts, sent through Gmail
@@ -152,7 +153,7 @@ client-agreement-automation/
 |---|---|
 | Upload and AI analysis | `templates.py`, `pdf_engine.py`, `detection/` |
 | Review and approve | `frontend/src/components/editor/`, `templates.py` |
-| Open a file, preview, send | `files.py`, `pdf_engine.py` |
+| Open a file, preview, send | `files.py`, `clients.py`, `pdf_engine.py` |
 | Emails, reminders, signing | `signing.py`, `email/`, `frontend/src/pages/SignPage.tsx` |
 | Signed PDF and certificate | `finalize.py`, `pdf_engine.py` |
 | Telling other systems | `webhooks.py`, `api/v1.py` |
