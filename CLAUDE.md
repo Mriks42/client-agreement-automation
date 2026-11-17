@@ -73,10 +73,7 @@ _Last updated: Tue Nov 17, 2026, about 16:10 MST. Everything built so far is ver
 
 **Cuts applied (Nov 15):** the "if time allows" items, the verify page, logo and colour branding, bounce detection, and the template-versioning UI. The API and webhooks stayed in scope. Since then, team invites, Sign now, the verify page and logo and colour branding were built on Nov 17 with the owner's approval. Bounce detection, bulk CSV and the template-versioning UI stay cut. See DECISIONS.md "If behind schedule".
 
-**Remaining schedule:**
-- **Tue, before the 14:00 feature freeze:** blind tests on software-subscription agreements shaped like MIND's (m-i-n-d.ai, Astra AI's product), then a Kickoff MCP server over /api/v1, the submission description, and team members if there's time.
-- **Polish list: done** (Nov 17, about 03:15). Values the firm fills in run on into the empty space to their right instead of printing tiny (`pdf_engine._right_limit`, sender values only, through `Stamp.room`). The added signature page writes curly quotes in plain form. The landing page no longer has the "System status" box. 129 backend tests pass.
-- **Hard stops (moved by the owner on Nov 17):** feature freeze Tue 14:00, final deploy verified by 17:00 (Render maintenance from 19:00), documentation only after 17:00, last commit by 22:00 MST.
+**Polish list: done** (Nov 17, about 03:15). Values the firm fills in run on into the empty space to their right instead of printing tiny (`pdf_engine._right_limit`, sender values only, through `Stamp.room`). The added signature page writes curly quotes in plain form. The landing page no longer has the "System status" box. 129 backend tests passed then.
 
 **Sign now (Nov 17, about 06:00): built and verified live.** `files.sign_now` and `POST /api/files/{id}/recipients/{rid}/sign-now` only work for the current signer whose email is the session user's. They mint a token like Copy signing link and record a `signing_opened_in_app` event (with the login), and the certificate and timeline word it. The frontend shows "Waiting for you" in the banner, the signer row and the Files list (`waiting_for` now includes `email`), a Sign now button, and Back to the file on the signing page via `?from=/files/<id>` (only that path shape). There are 2 tests in `test_sign_now.py`, a local Chrome run, and a live run in which the certificate records it.
 
@@ -132,7 +129,7 @@ The files are in `backend/samples/blind2/` (git-ignored).
 
 **Day 3 (templates), for reference:**
 - Auth (D14): argon2id; server-side sessions stored as an HMAC of the cookie token; a per-email login throttle; cross-site `/api/` writes refused by `Origin`.
-- `repo.Tenant` adds `org_id` to every query, and `transition()` is the atomic conditional update. `find_file_by_signing_token` is the one unscoped lookup (the token is the credential).
+- `repo.Tenant` adds `org_id` to every query, and `transition()` is the atomic conditional update. `find_file_by_signing_token` was the one unscoped lookup (the token is the credential). There are four now: `find_api_key`, `find_invite` and `find_file_by_final_sha256` (the verify page) followed, each because the credential or the PDF itself is the proof.
 - Templates: `analyzing → needs_review → active`, with `analysis_failed` offering **Try again** or **Place the fields myself**. `revision` guards edits; `version` goes up when an approved template is edited. Approval needs a signature field for every signer.
 - The review editor is desktop-first. Live with Claude, the Common Paper PSA (6 pages, 156 blanks) took 137 s and gave 152 fields, with both signature blocks found in the document.
 - Templates can't be deleted. The login throttle and page cache are per-process. Test accounts named `e2e+<timestamp>@example.com` exist in the live DB.
@@ -155,7 +152,7 @@ The files are in `backend/samples/blind2/` (git-ignored).
 - **Secrets** live only in the Render dashboard and the owner's private notes. Never in the repo, and never in chat.
 
 **Later reminders:**
-- **Anthropic API key** `kickoff`: Individual org, Default workspace, prepaid with auto-reload off. It expires **Feb 28, 2027**. The balance was about $2.60 on Nov 15, before three live Day 3 runs (about 5¢, 5¢ and 41¢) and the Day 4 live run (about 5¢), so it's now about **$2.05, just above the $2 floor** (Day 5 used none). The owner will add $5 before the blind-test round. Check it before submitting, and keep at least $2: at $0, detection silently falls back to heuristics. The key is in Render and in `backend/.env` (gitignored).
+- **Anthropic API key** `kickoff`: Individual org, Default workspace, prepaid with auto-reload off. It expires **Feb 28, 2027**. The balance was about $2.05 after Day 4, and the owner planned to add $5 before the blind tests. Nov 17 used 13 Claude analyses and one online eval (about 48¢); see "Left for the owner". The exact balance is only in the Anthropic console. Check it before submitting, and keep at least $2: at $0, detection silently falls back to heuristics. The key is in Render and in `backend/.env` (gitignored).
 - The workspace's 750 free Render hours are shared with two other services; suspend those if grading runs into December.
 - Optional, before submitting: rotate the Atlas DB user's password, and update `MONGODB_URI` in Render to match.
 
@@ -188,7 +185,7 @@ A multi-tenant web app that gets a firm's standard client agreement signed on ev
 
 ## Hard constraints
 
-- **Deadline: Wed Nov 18, 2026 00:00 America/Phoenix.** Any commit after that disqualifies the submission. Features freeze at Tue Nov 17 14:00. **Final deploy, verified live, by Tue 17:00**, because Render has infrastructure maintenance from Nov 17 19:00 MST. Documentation only after 17:00. Final commit and push by Tue 22:00.
+- **Deadline: Wed Nov 18, 2026 00:00 America/Phoenix.** Any commit after that disqualifies the submission. As moved by the owner on Nov 17: new features until Tue 21:30, no pushes from 19:00 to 20:00 (Render maintenance), the final deploy verified live with `scripts.live_check` by 22:30, documentation only after that, and the last commit and push by 23:00.
 - **Test data only.** Never put real people's names, emails, addresses or signatures in fixtures, seeds, tests, logs or screenshots. Use obviously fake data such as `jane.client@example.com` or "Acme Test Co".
 - The scope is fixed in `DECISIONS.md`. Adding or dropping a feature means updating `DECISIONS.md` in the same commit.
 
@@ -215,7 +212,7 @@ backend/
     config.py            Settings (env vars below)
     db.py                Mongo client, indexes, GridFS buckets
     repo.py              Tenant: the only way to query tenant collections (adds org_id; atomic transition())
-    api/                 Routers: auth, templates, files, signing (public, token-auth), health, ops, settings (API keys, webhook), v1 (public API, API-key auth)
+    api/                 Routers: auth, templates, files, clients (saved clients), signing (public, token-auth), verify (public), branding (logo and colour; the logo is public), health, ops, settings (API keys, webhook), v1 (public API, API-key auth)
     domain/              Pydantic models + state enums (fields.py: Field, Role, Rect)
     services/
       accounts.py        Orgs, users, argon2 passwords, HMAC-keyed sessions, login throttle

@@ -17,7 +17,7 @@ Kickoff then emails each signer in order, chases them (day 2 and day 5), and col
 
 **I measured it instead of hoping.** Kickoff was tested on twelve public agreements it had never seen, each judged on its first run. Nine went through the whole live app, from upload to signed PDF: accounting engagement letters (Word and PDF), consulting agreements, a 28-page design agreement, a fillable PDF form, a scan, and three software-subscription agreements like the one MIND would use. Every one of the nine reached a signed PDF with the right signers in the right order and at most 5 reviewer edits; most needed none. The first three (two services agreements and a legal fee agreement) tested detection earlier in the week, and the signers and order were right each time. The blockers they exposed were fixed, each with a test. The worst was that filling a placeholder in tightly set text deleted words on the neighbouring lines. The results are in the DECISIONS.md change log.
 
-**It's built to be sold, not just demoed.** Any firm can sign up. Each firm's data is kept separate, and emails and the signing page show the firm's name. A firm's own systems can open files through an API and hear back through signed webhooks, and an AI assistant can do the same through an MCP server.
+**It's built to be sold, not just demoed.** Any firm can sign up. Each firm's data is kept separate, and emails and the signing page show the firm's name, logo and colour. A firm's own systems can open files through an API and hear back through signed webhooks, and an AI assistant can do the same through an MCP server.
 
 **For Astra and MIND:**
 - Upload the MIND client agreement once.

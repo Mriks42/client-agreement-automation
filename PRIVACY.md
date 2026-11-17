@@ -1,6 +1,6 @@
 # Privacy Notice: Kickoff
 
-_Last updated: 2026-11-11_
+_Last updated: 2026-11-17_
 
 Kickoff helps firms get their client agreement signed on every new client file. This notice explains what data Kickoff processes, why, and who processes it.
 
@@ -19,7 +19,9 @@ Kickoff helps firms get their client agreement signed on every new client file. 
 | Uploaded agreement documents and the per-file details a firm enters (for example, the client's name or fee) | Firm users | To prepare each agreement |
 | Name, email address, typed or drawn signature, form field values | Signers | To complete the agreement |
 | IP address, browser user agent, timestamps (viewed, consented, signed, declined), consent to sign electronically | Signers | To produce the audit trail that makes an electronic signature verifiable (US ESIGN Act / UETA) |
-| Delivery status of emails we send | Both | To show a firm when a signing email bounced, so it can be corrected |
+| Saved clients: the client signer's name and email, and the client details a firm entered on files it sent (company, address, phone, title) | Firm users | So the next file for the same client can be filled in. The firm can correct or delete them |
+| A firm's logo and brand colour | Firm users | To show the firm's branding on its signing emails and signing page. The logo is reachable by anyone with its link |
+| Whether each email we send was accepted for delivery | Both | To show a firm when a signing email couldn't be sent, so it can resend it or correct the address |
 
 We do not sell data, use it for advertising, or use signer data to train AI models.
 
@@ -27,8 +29,9 @@ We do not sell data, use it for advertising, or use signer data to train AI mode
 
 Kickoff sends transactional emails (signing requests, reminders, completed copies) from a dedicated Gmail account using the Gmail API. Kickoff accesses only **that sending account**. It uses the access to:
 
-- send these messages, and
-- read delivery-failure notices in that account's inbox, so bounced signing requests can be flagged.
+- send these messages.
+
+Reading delivery-failure notices in that account's inbox was planned, to flag bounced signing requests, but isn't built, so Kickoff doesn't read that mailbox.
 
 It does not access any other mailbox, and it does not use Gmail data for any other purpose. Kickoff's use and transfer of information received from Google APIs adheres to the [Google API Services User Data Policy](https://developers.google.com/terms/api-services-user-data-policy), including the Limited Use requirements.
 
@@ -56,6 +59,8 @@ Completed agreements and their audit trails are kept for as long as the firm's a
 - Passwords are stored as one-way hashes.
 - Signing links and API keys are stored only as hashes.
 - Completed documents are fingerprinted with SHA-256, so any later alteration can be detected.
+- On the public verify page, the browser computes a PDF's SHA-256 itself and only that fingerprint is sent. The PDF never leaves the person's device. A match shows the agreement, the firm, the date and the signers' names, never their email addresses.
+- If a firm connects its own systems through the API or a webhook, file details are sent to the address the firm chooses.
 
 ## Contact
 

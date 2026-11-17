@@ -24,7 +24,7 @@ A firm uploads its standard client agreement once. AI finds where every blank an
 3. Check the proposed fields and press **Approve**.
 4. **Files → New file:** enter the signers and the client's details, then **Preview the agreement → Confirm and send**.
 5. Each signer gets an email in the firm's name. The first one may land in spam, so check there. You can also press **Copy signing link** on the file page and send the link yourself. When it's your own turn to countersign, press **Sign now** on the file page; you don't need the email.
-6. When everyone has signed, the file page offers **Download signed agreement**.
+6. When everyone has signed, the file page offers **Download signed agreement**. Anyone can check a copy at **/verify**.
 
 ## API and webhooks
 
@@ -52,7 +52,7 @@ The [Kickoff MCP server](mcp-server/README.md) is a small add-on for Claude Desk
 
 ## Status
 
-Everything above is live. Before release I ran a blind test on six public agreements the system had never seen; the results are in the DECISIONS.md change log. Known limitations, and what production would need, are under "Known limitations" in [DECISIONS.md](DECISIONS.md).
+Everything above is live. Before release I ran two blind-test rounds on nine public agreements the system had never seen, each taken from upload to signed PDF on the live app; the results are in the DECISIONS.md change log. Known limitations, and what production would need, are under "Known limitations" in [DECISIONS.md](DECISIONS.md).
 
 ## How it works
 
