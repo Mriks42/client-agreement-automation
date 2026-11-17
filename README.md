@@ -13,6 +13,7 @@ A firm uploads its standard client agreement once. AI finds where every blank an
 3. **Signers sign in order,** from an emailed link, on a phone or a computer. They agree to sign electronically, fill in their parts, and type or draw a signature. Reminders go out on day 2 and day 5, and links expire after 30 days. The firm can copy a signing link, resend, correct an email address, or void the file.
 4. **Everyone gets the signed PDF** with an audit certificate showing who signed, when, from where, and the SHA-256 fingerprints. The file shows "Signed: ready to start work".
 5. **Other systems can join in.** With an API key, a CRM or practice manager can open files. Signed webhooks report when each file is sent, signed and complete.
+6. **AI assistants can use it too.** The [Kickoff MCP server](mcp-server/README.md) lets Claude (or any MCP client) prepare a draft for a client, say which agreements are still waiting, and save the signed PDF. A person still checks and sends every draft.
 
 ## Try it
 
@@ -42,6 +43,10 @@ curl https://kickoff-r713.onrender.com/api/v1/files \
 - **Webhook events:** `file.sent`, `signer.signed`, `file.completed` (the signed PDF is ready), `file.declined`, `file.voided` and `file.expired`. Each event carries the file and your `metadata`.
 - **Checking a webhook came from Kickoff:** each delivery has `X-Kickoff-Signature: t=<unix time>,v1=<hex>`. Compute an HMAC-SHA256 of `t + "." + raw body` with your signing secret, compare it with `v1`, and reject anything more than 5 minutes old.
 - **Failures:** a failed delivery is retried for about an hour and a half. Settings shows a log of every delivery, with **Retry** on any that gave up.
+
+### AI assistants (MCP)
+
+The [Kickoff MCP server](mcp-server/README.md) is a small add-on for Claude Desktop, Claude Code or any MCP client. It runs on your computer with your API key. Ask *"Send our client agreement to Jane at Acme"* and it prepares a draft and gives you the link to check and send it. Ask *"Which agreements are still waiting?"* to see who each one is waiting for, or *"Save the signed Acme agreement"* to download it. It can prepare drafts, but it can't send them. Setup takes about 2 minutes; see [mcp-server/README.md](mcp-server/README.md).
 
 ## Status
 
@@ -73,6 +78,7 @@ flowchart LR
     signers --> web
     web --> api
     other -- "API key" --> api
+    assistant["AI assistants<br/>Claude, via MCP"] -- "MCP server + API key" --> api
     api --> db
     api --> jobs
     jobs --> db
@@ -120,6 +126,8 @@ client-agreement-automation/
 │   │                       file page, signing page, settings
 │   └── components/         Shared pieces: the field editor, the signature pad
 │
+├── mcp-server/            THE MCP ADD-ON: lets AI assistants prepare drafts and track signatures
+│
 └── backend/                THE SERVER
     ├── app/api/            The server's entry points, one file per area
     │                       (sign-up, agreements, files, signing, settings, public API)
@@ -146,6 +154,7 @@ client-agreement-automation/
 | Emails, reminders, signing | `signing.py`, `email/`, `frontend/src/pages/SignPage.tsx` |
 | Signed PDF and certificate | `finalize.py`, `pdf_engine.py` |
 | Telling other systems | `webhooks.py`, `api/v1.py` |
+| AI assistants (MCP) | `mcp-server/kickoff_mcp/server.py` |
 
 ## Run it locally
 

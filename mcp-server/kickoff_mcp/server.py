@@ -13,6 +13,7 @@ Configuration, as environment variables:
 """
 
 import hashlib
+import logging
 import os
 import re
 from pathlib import Path
@@ -39,7 +40,10 @@ The usual flow:
 Never invent signers' names or emails, or the agreement's details: ask the user for what you
 don't know."""
 
-mcp = FastMCP("kickoff", instructions=INSTRUCTIONS)
+mcp = FastMCP("kickoff", instructions=INSTRUCTIONS, log_level="WARNING")
+logging.getLogger("httpx").setLevel(
+    logging.WARNING
+)  # one line per request is noise in a client's log
 
 # Tests swap in an httpx.MockTransport here.
 _transport: httpx.AsyncBaseTransport | None = None

@@ -54,6 +54,8 @@ _Last updated: Tue Nov 17, 2026, about 02:30 MST. The blind-test round is done. 
 - **Polish list: done** (Nov 17, about 03:15). Values the firm fills in run on into the empty space to their right instead of printing tiny (`pdf_engine._right_limit`, sender values only, through `Stamp.room`). The added signature page writes curly quotes in plain form. The landing page no longer has the "System status" box. 129 backend tests pass.
 - **Hard stops (moved by the owner on Nov 17):** feature freeze Tue 14:00, final deploy verified by 17:00 (Render maintenance from 19:00), documentation only after 17:00, last commit by 22:00 MST.
 
+**MCP server (Nov 17, about 05:30): built and verified live** (DECISIONS.md item 16). `mcp-server/` is a separate package (official `mcp` SDK, FastMCP, stdio, Python 3.13). Its tools are `list_agreements`, `open_file` (a draft only; a `reference` becomes the Idempotency-Key), `list_files` ("waiting" = sent + partially_signed, through the new `GET /api/v1/files?status=`), `get_file` and `download_signed_agreement` (verifies the SHA-256). Errors are `ToolError` with Kickoff's own message. It has 5 tests against an `httpx.MockTransport` fake and its own CI job. The live check ran a real MCP client over stdio, with the server installed by `uvx --from git+https://github.com/Mriks42/client-agreement-automation#subdirectory=mcp-server kickoff-mcp`, through the whole flow; the temporary key was revoked.
+
 **Second blind-test round (Nov 17, about 05:20): passed.** Three software-subscription agreements shaped like MIND's might be (MIND, m-i-n-d.ai, is Astra AI's own product). All three reached a signed PDF on the first run with 0 reviewer edits and no blockers:
 - Common Paper Cloud Service Agreement with AI terms (Word, 13 pages, 112 s): one placeholder missed, flagged by the AI.
 - Common Paper Order Form (Word, 52 s).
@@ -210,6 +212,7 @@ backend/
   samples/               drop agreements here for demo_sign; git-ignored except the README
 frontend/
   src/                   pages/, components/, api/ (typed client), lib/
+mcp-server/              Kickoff MCP server (separate package): kickoff_mcp/server.py, tests/; see its README
 Dockerfile               Multi-stage: node build → python:3.13-slim + libreoffice-writer-nogui + fonts
 render.yaml              Render Blueprint
 ```
