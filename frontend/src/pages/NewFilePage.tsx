@@ -341,7 +341,10 @@ function ClientPicker({ templateId, onPick }: { templateId: string; onPick: (fil
       </label>
       <p className="mt-0.5 text-xs text-slate-500">
         Optional. Pick a client you’ve sent to before to fill in their details. Dates, fees and other details for this
-        job are left for you.
+        job are left for you.{' '}
+        <Link to="/clients" className="underline hover:text-slate-800">
+          Edit saved clients
+        </Link>
       </p>
       <div className="relative mt-2">
         <input

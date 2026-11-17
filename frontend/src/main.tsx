@@ -7,6 +7,7 @@ import { AppShell } from './components/AppShell'
 import './index.css'
 import { JoinPage, LoginPage, SignupPage } from './pages/AuthPages'
 import { FilePage } from './pages/FilePage'
+import { ClientsPage } from './pages/ClientsPage'
 import { FilesPage } from './pages/FilesPage'
 import { HomePage } from './pages/HomePage'
 import { EditFilePage, NewFilePage } from './pages/NewFilePage'
@@ -39,6 +40,7 @@ const router = createBrowserRouter([
     element: <AppShell />,
     children: [
       { path: '/files', element: <FilesPage /> },
+      { path: '/clients', element: <ClientsPage /> },
       { path: '/files/new', element: <NewFilePage /> },
       { path: '/files/:id', element: <FilePage /> },
       { path: '/files/:id/edit', element: <EditFilePage /> },

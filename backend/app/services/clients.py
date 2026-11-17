@@ -19,11 +19,12 @@ import re
 from typing import Any
 
 from bson import ObjectId
+from pymongo.errors import DuplicateKeyError
 
 from app.domain.fields import sender_inputs
 from app.repo import Tenant, parse_id
 from app.services.accounts import normalize_email
-from app.services.errors import NotFound
+from app.services.errors import Conflict, Invalid, NotFound
 from app.worker.queue import utcnow
 
 COMPANY = "company"
@@ -40,6 +41,7 @@ DETAILS = (
 )  # saved from the form; name and email come from the signer
 
 MAX_VALUE = 300
+_EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 
 _FIRM_WORDS = frozenset(
     {
@@ -224,6 +226,34 @@ async def fill(tenant: Tenant, client_id: str, template_id: str) -> dict[str, An
         else None,
         "values": values,
     }
+
+
+async def update(tenant: Tenant, client_id: str, changes: dict[str, str]) -> dict[str, Any]:
+    """Correct a saved client from the Clients list. The values saved key for key from earlier
+    files are dropped, so the next file fills from these corrected details everywhere."""
+    c = await get(tenant, client_id)
+    clean: dict[str, str] = {}
+    for k in (COMPANY, CONTACT, PHONE, ADDRESS, TITLE, EMAIL):
+        if k in changes:
+            clean[k] = " ".join(changes[k].split())[:MAX_VALUE]
+    if EMAIL in clean:
+        clean[EMAIL] = normalize_email(clean[EMAIL])
+        if not _EMAIL_RE.match(clean[EMAIL]):
+            raise Invalid(["Enter a valid email address."])
+    if CONTACT in clean and not clean[CONTACT] and not clean.get(COMPANY, c.get(COMPANY)):
+        raise Invalid(["Enter a company or a contact name."])
+    try:
+        updated = await tenant.transition(
+            "clients",
+            c["_id"],
+            {},
+            {"$set": {**clean, "updated_at": utcnow()}, "$unset": {"templates": ""}},
+        )
+    except DuplicateKeyError as exc:
+        raise Conflict("Another saved client already has that email.") from exc
+    if updated is None:
+        raise NotFound(client_id)
+    return public(updated)
 
 
 async def delete(tenant: Tenant, client_id: str) -> None:

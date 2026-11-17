@@ -16,7 +16,7 @@ _Last updated: Tue Nov 17, 2026, about 06:20 MST. Everything built so far is ver
    - Fields are matched across different agreements by label keyword categories (company / contact name / email / phone / address / title) with plain rules, not AI; for the same agreement, the exact keys are reused.
    - The picker is optional: if it's ignored, the form behaves exactly as today.
    - Tests: matching across two agreements, firm-side fields left untouched, job fields left empty, cross-org 404.
-   - Later, if there's time: a small Clients list to edit or delete entries.
+   - Later, if there's time: a small Clients list to edit or delete entries. **Built Nov 17: `/clients` (`ClientsPage.tsx`), `PATCH /api/clients/{id}`; editing drops the per-agreement exact values.**
 2. **Verify page** (about 1 h). This was D7's cut verify page. **Built Nov 17 (`api/verify.py`, `repo.find_file_by_final_sha256` (the fourth unscoped lookup), `VerifyPage.tsx`, `test_verify.py`).**
    - A public `/verify` page. The browser computes the PDF's SHA-256 with Web Crypto, so the PDF never leaves the device. It calls `GET /api/verify/{sha256}`, an unscoped lookup by `files.final_sha256`; add an index.
    - On a match, show the agreement, the file title, the firm, the completion date and the signers' names. Anyone holding that exact PDF already sees all of that.
@@ -28,7 +28,7 @@ _Last updated: Tue Nov 17, 2026, about 06:20 MST. Everything built so far is ver
    - Emails get the logo at the top and the button in the brand colour. The signing page gets the logo in its header and its buttons in the colour.
    - "Secured by Kickoff" stays.
    - With no branding set, everything looks exactly as today.
-4. **Find very short blanks** (about 1.5 h). **Built Nov 17 (`_MIN_UNDERSCORE_WIDTH` = 8 pt in `pdf_engine`, the `short_blanks` eval fixture, a test in `test_pdf_engine.py`). Online eval approved by the owner: 82/82, 0 false positives, about 48¢ (the report in `evals/out/` is git-ignored).** This is the known limitation: underscore runs under 15 pt wide, like `___` for initials, aren't candidates (`pdf_engine`, the `box.width >= 15` check and `_MIN_UNDERSCORES`).
+4. **Find very short blanks** (about 1.5 h). **Built Nov 17 (`_MIN_UNDERSCORE_WIDTH` = 8 pt in `pdf_engine`, the `short_blanks` eval fixture, a test in `test_pdf_engine.py`). Online eval approved by the owner: 82/82, 0 false positives, about 48¢ (the report in `evals/out/` is git-ignored). AIGA re-run live (approved): all 21 short blanks found and labelled in 48 s.** This is the known limitation: underscore runs under 15 pt wide, like `___` for initials, aren't candidates (`pdf_engine`, the `box.width >= 15` check and `_MIN_UNDERSCORES`).
    - Lower the threshold carefully, e.g. accept 3+ underscores at 8 pt or more.
    - Add an eval fixture with initials and option-mark blanks (`evals/make_fixtures.py`).
    - Run the offline eval before and after (free).

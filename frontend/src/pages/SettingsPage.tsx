@@ -1,4 +1,5 @@
 import { useState, type FormEvent, type ReactNode } from 'react'
+import { Link } from 'react-router'
 import { errorProblems } from '../api/client'
 import {
   useApiKeys,
@@ -37,6 +38,15 @@ export function SettingsPage() {
         </p>
       </div>
       <TeamCard />
+      <Card>
+        <h2 className="text-base font-semibold">Saved clients</h2>
+        <p className="mt-1 text-sm text-slate-600">
+          Each client you send a file to is saved, so the next file can fill in their details.{' '}
+          <Link to="/clients" className="font-medium text-brand hover:underline">
+            Edit or delete saved clients
+          </Link>
+        </p>
+      </Card>
       <BrandingCard />
       <ApiKeys />
       <Webhook />

@@ -206,3 +206,37 @@ async def test_other_companies_get_404(
 
     assert (await client.delete(f"/api/clients/{mine['id']}")).status_code == 204
     assert (await client.get("/api/clients")).json() == []
+
+
+async def test_edit_a_saved_client(
+    app: FastAPI, client: httpx.AsyncClient, second_client: httpx.AsyncClient
+) -> None:
+    await signup(client)
+    t = await approved(app, client, "two_party_services.pdf")
+    values = {"client_legal_name": "Acme Test Co", "client_address": "1 Test Street"}
+    await send(client, t, values, [JANE, FIRM])
+    other = {"role": "client", "name": "Joe Client", "email": "joe.client@example.com"}
+    await send(client, t, {"client_legal_name": "Beta Test LLC"}, [other, FIRM])
+    acme = (await client.get("/api/clients", params={"q": "acme"})).json()[0]
+
+    r = await client.patch(
+        f"/api/clients/{acme['id']}",
+        json={"address": "  2 New Road,   Testville ", "phone": "555-0100"},
+    )
+    assert r.status_code == 200, r.text
+    assert r.json()["address"] == "2 New Road, Testville" and r.json()["phone"] == "555-0100"
+    # The corrected address fills the next file, even on the agreement it was first saved from.
+    assert (await fill(client, acme["id"], t))["values"][
+        "client_address"
+    ] == "2 New Road, Testville"
+
+    bad = await client.patch(f"/api/clients/{acme['id']}", json={"email": "not an email"})
+    assert bad.status_code == 422
+    taken = await client.patch(
+        f"/api/clients/{acme['id']}", json={"email": "JOE.client@example.com"}
+    )
+    assert taken.status_code == 409 and "already" in taken.text
+
+    await signup(second_client, email="other@example.com", org_name="Other Test Co")
+    r = await second_client.patch(f"/api/clients/{acme['id']}", json={"phone": "1"})
+    assert r.status_code == 404

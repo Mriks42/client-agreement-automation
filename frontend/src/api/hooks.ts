@@ -165,12 +165,28 @@ function useFileMutation<V>(fn: (vars: V) => Promise<FileDetail>) {
 }
 
 // ---- saved clients --------------------------------------------------------------------------
-export function useClients(q: string) {
+export function useClients(q: string, limit = 8) {
   return useQuery({
-    queryKey: ['clients', q],
-    queryFn: () => api.get<SavedClient[]>(`/api/clients?q=${encodeURIComponent(q)}`),
+    queryKey: ['clients', q, limit],
+    queryFn: () => api.get<SavedClient[]>(`/api/clients?q=${encodeURIComponent(q)}&limit=${limit}`),
     placeholderData: keepPreviousData,
     staleTime: 30_000,
+  })
+}
+
+export function useEditClient() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, ...body }: { id: string } & Record<string, string>) => api.patch<SavedClient>(`/api/clients/${id}`, body),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ['clients'] }),
+  })
+}
+
+export function useDeleteClient() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => api.delete<null>(`/api/clients/${id}`),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ['clients'] }),
   })
 }
 
