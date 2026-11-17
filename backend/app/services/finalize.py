@@ -27,7 +27,7 @@ from gridfs import AsyncGridFSBucket
 
 from app.config import Settings
 from app.repo import Tenant
-from app.services import events, pdf_engine, signing, storage
+from app.services import branding, events, pdf_engine, signing, storage
 from app.services.email import messages as mail
 from app.services.email.outbox import enqueue_email
 from app.services.errors import Conflict, NotFound
@@ -48,11 +48,11 @@ async def handle_finalize_file(ctx: JobContext, payload: dict[str, Any]) -> None
     if file is None or file["status"] != "completed":
         return
     settings: Settings = ctx.services["settings"]
-    org = await ctx.db.orgs.find_one({"_id": tenant.org_id}, {"name": 1})
+    org = await branding.load(ctx.db, tenant.org_id)
     org_name = org["name"] if org else settings.email_product_name
     if not file.get("finalized_at"):
         file = await build(tenant, ctx.services["blobs"], settings, file, org_name)
-    await deliver(tenant, settings, file, org_name)
+    await deliver(tenant, settings, file, org_name, branding.public(org, settings.app_base_url))
 
 
 async def on_finalize_dead(ctx: JobContext, payload: dict[str, Any], error: str) -> None:
@@ -365,7 +365,13 @@ def _signing_order(file: dict[str, Any]) -> str:
 
 
 # ---- step 2: everyone's copy -------------------------------------------------------------------
-async def deliver(tenant: Tenant, settings: Settings, file: dict[str, Any], org_name: str) -> None:
+async def deliver(
+    tenant: Tenant,
+    settings: Settings,
+    file: dict[str, Any],
+    org_name: str,
+    brand: dict[str, Any] | None = None,
+) -> None:
     file_id, org = str(file["_id"]), str(tenant.org_id)
     attachment = {
         "blob_id": str(file["final_blob_id"]),
@@ -395,6 +401,7 @@ async def deliver(tenant: Tenant, settings: Settings, file: dict[str, Any], org_
             sha256=file["final_sha256"],
             verify_url=signing.verify_url(settings),
             product=product,
+            brand=brand,
         )
         await enqueue_email(
             tenant.db,

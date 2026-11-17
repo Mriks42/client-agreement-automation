@@ -2,6 +2,7 @@ import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tansta
 import { api, ApiError } from './client'
 import type {
   ApiKey,
+  Branding,
   ClientFill,
   Field,
   FileDetail,
@@ -411,4 +412,30 @@ export function useJoin() {
     mutationFn: (body: { token: string; name: string; password: string }) => api.post<Me>('/api/auth/join', body),
     onSuccess: (me) => qc.setQueryData(['me'], me),
   })
+}
+
+// ---- branding -------------------------------------------------------------------------------
+export function useBranding() {
+  return useQuery({ queryKey: ['branding'], queryFn: () => api.get<Branding>('/api/settings/branding') })
+}
+
+function useBrandingMutation<V>(fn: (vars: V) => Promise<Branding>) {
+  const qc = useQueryClient()
+  return useMutation({ mutationFn: fn, onSuccess: (b) => qc.setQueryData(['branding'], b) })
+}
+
+export function useUploadLogo() {
+  return useBrandingMutation((file: File) => {
+    const body = new FormData()
+    body.append('file', file)
+    return api.post<Branding>('/api/settings/branding/logo', body)
+  })
+}
+
+export function useRemoveLogo() {
+  return useBrandingMutation(() => api.delete<Branding>('/api/settings/branding/logo'))
+}
+
+export function useSetBrandColor() {
+  return useBrandingMutation((color: string | null) => api.put<Branding>('/api/settings/branding', { color }))
 }

@@ -2,17 +2,21 @@ import { useState, type FormEvent, type ReactNode } from 'react'
 import { errorProblems } from '../api/client'
 import {
   useApiKeys,
+  useBranding,
   useCopyInviteLink,
   useCreateApiKey,
   useDeleteWebhook,
   useInviteMember,
+  useRemoveLogo,
   useRemoveMember,
   useRevokeInvite,
   useRetryDelivery,
   useRevokeApiKey,
   useSaveWebhook,
+  useSetBrandColor,
   useTeam,
   useTestWebhook,
+  useUploadLogo,
   useWebhook,
   useWebhookDeliveries,
 } from '../api/hooks'
@@ -28,11 +32,12 @@ export function SettingsPage() {
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Settings</h1>
         <p className="mt-1 text-sm text-slate-600">
-          Your team, and your other systems: a CRM or practice manager can open a file with an API key, and a webhook
-          tells it when the agreement is signed so work can start.
+          Your team, your logo and colour, and your other systems: a CRM or practice manager can open a file with an
+          API key, and a webhook tells it when the agreement is signed so work can start.
         </p>
       </div>
       <TeamCard />
+      <BrandingCard />
       <ApiKeys />
       <Webhook />
       <QuickStart />
@@ -189,6 +194,142 @@ function TeamCard() {
 }
 
 // ---- API keys -----------------------------------------------------------------------------------
+const DEFAULT_BRAND = '#2f5bea'
+const HEX = /^#[0-9a-f]{6}$/
+
+function luminance(hex: string): number {
+  const ch = (i: number) => {
+    const s = parseInt(hex.slice(i, i + 2), 16) / 255
+    return s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4
+  }
+  return 0.2126 * ch(1) + 0.7152 * ch(3) + 0.0722 * ch(5)
+}
+
+function contrast(a: string, b: string): number {
+  const [hi, lo] = [luminance(a), luminance(b)].sort((x, y) => y - x)
+  return (hi + 0.05) / (lo + 0.05)
+}
+
+/** Same rule as the server (services/branding.ink): white, else near-black, else black. */
+function inkFor(hex: string): string {
+  return ['#ffffff', '#0f172a'].find((c) => contrast(hex, c) >= 4.5) ?? '#000000'
+}
+
+function normalizeHex(value: string): string {
+  let v = value.trim().toLowerCase()
+  if (!v.startsWith('#')) v = `#${v}`
+  if (/^#[0-9a-f]{3}$/.test(v)) v = `#${[...v.slice(1)].map((c) => c + c).join('')}`
+  return v
+}
+
+function BrandingCard() {
+  const branding = useBranding()
+  const upload = useUploadLogo()
+  const removeLogo = useRemoveLogo()
+  const setColor = useSetBrandColor()
+  const [draft, setDraft] = useState<string | null>(null)
+  const saved = branding.data?.color ?? null
+  const typed = draft ?? saved ?? DEFAULT_BRAND
+  const hex = normalizeHex(typed)
+  const valid = HEX.test(hex)
+  const logo = branding.data?.logo_url
+
+  return (
+    <Card>
+      <h2 className="text-base font-semibold">Branding</h2>
+      <p className="mt-1 text-sm text-slate-600">
+        Your logo and colour on the emails signers get and on the signing page. “Secured by Kickoff” stays. Without
+        them, signers see the standard look with your company name.
+      </p>
+      {branding.isPending ? (
+        <Spinner className="mt-4 h-5 w-5 text-slate-400" />
+      ) : (
+        <div className="mt-4 grid gap-6 sm:grid-cols-2">
+          <div>
+            <h3 className="text-sm font-medium text-slate-800">Logo</h3>
+            {logo ? (
+              <img src={logo} alt="Your logo" className="mt-2 h-12 w-auto max-w-[220px] rounded border border-slate-200 bg-white object-contain p-1" />
+            ) : (
+              <p className="mt-2 text-sm text-slate-500">No logo yet.</p>
+            )}
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-slate-300 bg-white px-3.5 py-2 text-sm font-medium text-slate-800 hover:bg-slate-50 has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-brand">
+                {upload.isPending && <Spinner className="h-4 w-4" />}
+                {logo ? 'Replace logo' : 'Upload logo'}
+                <input
+                  type="file"
+                  accept="image/png,image/jpeg"
+                  className="sr-only"
+                  disabled={upload.isPending}
+                  onChange={(e) => {
+                    const file = e.target.files?.[0]
+                    if (file) upload.mutate(file)
+                    e.target.value = ''
+                  }}
+                />
+              </label>
+              {logo && (
+                <Button variant="ghost" busy={removeLogo.isPending} onClick={() => removeLogo.mutate()}>
+                  Remove
+                </Button>
+              )}
+            </div>
+            <p className="mt-2 text-xs text-slate-500">PNG or JPG, up to 512 KB. A wide logo about 80 pixels tall looks best.</p>
+            {upload.isError && <Alert className="mt-2">{upload.error.message}</Alert>}
+          </div>
+          <div>
+            <h3 className="text-sm font-medium text-slate-800">Colour</h3>
+            <div className="mt-2 flex items-center gap-2">
+              <input
+                type="color"
+                aria-label="Pick a colour"
+                value={valid ? hex : DEFAULT_BRAND}
+                onChange={(e) => setDraft(e.target.value)}
+                className="h-9 w-12 cursor-pointer rounded border border-slate-300 bg-white p-0.5"
+              />
+              <input
+                aria-label="Colour as a hex value"
+                value={typed}
+                maxLength={7}
+                onChange={(e) => setDraft(e.target.value)}
+                className="block w-28 rounded-lg border border-slate-300 bg-white px-3 py-2 font-mono text-sm focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20"
+              />
+            </div>
+            <p className="mt-3 text-xs text-slate-500">How buttons look:</p>
+            <span
+              className="mt-1 inline-block rounded-lg px-4 py-2 text-sm font-semibold"
+              style={valid ? { background: hex, color: inkFor(hex) } : { background: DEFAULT_BRAND, color: '#ffffff' }}
+            >
+              Review and sign
+            </span>
+            {!valid && <p className="mt-1 text-xs text-red-700">Enter a hex value, like #1e40af.</p>}
+            <div className="mt-3 flex flex-wrap gap-2">
+              <Button
+                disabled={!valid || hex === saved || (!saved && hex === DEFAULT_BRAND)}
+                busy={setColor.isPending && setColor.variables !== null}
+                onClick={() => setColor.mutate(hex, { onSuccess: () => setDraft(null) })}
+              >
+                Save colour
+              </Button>
+              {saved && (
+                <Button
+                  variant="ghost"
+                  busy={setColor.isPending && setColor.variables === null}
+                  onClick={() => setColor.mutate(null, { onSuccess: () => setDraft(null) })}
+                >
+                  Use the standard colour
+                </Button>
+              )}
+            </div>
+            <p className="mt-2 text-xs text-slate-500">The text on it is white or dark, whichever is easier to read.</p>
+            {setColor.isError && <Alert className="mt-2">{setColor.error.message}</Alert>}
+          </div>
+        </div>
+      )}
+    </Card>
+  )
+}
+
 function ApiKeys() {
   const keys = useApiKeys()
   const create = useCreateApiKey()

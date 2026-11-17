@@ -4,6 +4,7 @@ bare links (D11). Everything interpolated into HTML is escaped."""
 from dataclasses import dataclass
 from datetime import datetime
 from html import escape
+from typing import Any
 
 
 @dataclass(frozen=True)
@@ -18,9 +19,29 @@ def _date(d: datetime) -> str:
 
 
 def _html(
-    *, preheader: str, heading: str, paras: list[str], button: tuple[str, str] | None, footer: str
+    *,
+    preheader: str,
+    heading: str,
+    paras: list[str],
+    button: tuple[str, str] | None,
+    footer: str,
+    brand: dict[str, Any] | None = None,
+    logo_alt: str = "",
 ) -> str:
-    """paras are already-escaped HTML fragments."""
+    """paras are already-escaped HTML fragments. `brand` (services/branding.public, with an
+    absolute logo URL) adds the firm's logo and colour; without one, the email is unchanged."""
+    brand = brand or {}
+    custom = bool(brand.get("color"))
+    color = brand["color"] if custom else "#2f5bea"
+    ink = brand.get("ink", "#ffffff") if custom else "#ffffff"
+    link = brand.get("text", color) if custom else "#2f5bea"
+    logo = ""
+    if brand.get("logo_url"):
+        logo = (
+            f'<img src="{escape(brand["logo_url"])}" alt="{escape(logo_alt)}" height="40" '
+            'style="display:block;height:40px;width:auto;max-width:220px;margin:0 0 20px;'
+            'border:0">'
+        )
     body = "".join(
         f'<p style="margin:0 0 14px;font-size:15px;line-height:1.55;color:#1e293b">{p}</p>'
         for p in paras
@@ -30,13 +51,13 @@ def _html(
         label, url = button
         cta = (
             '<table role="presentation" cellspacing="0" cellpadding="0" style="margin:8px 0 22px">'
-            '<tr><td style="border-radius:8px;background:#2f5bea">'
+            f'<tr><td style="border-radius:8px;background:{color}">'
             f'<a href="{escape(url)}" style="display:inline-block;padding:12px 22px;'
-            "font-size:15px;font-weight:600;color:#ffffff;text-decoration:none;"
+            f"font-size:15px;font-weight:600;color:{ink};text-decoration:none;"
             f'border-radius:8px">{escape(label)}</a></td></tr></table>'
             '<p style="margin:0 0 14px;font-size:12px;line-height:1.5;color:#64748b">'
             "If the button doesn't work, copy this link into your browser:<br>"
-            f'<a href="{escape(url)}" style="color:#2f5bea;word-break:break-all">'
+            f'<a href="{escape(url)}" style="color:{link};word-break:break-all">'
             f"{escape(url)}</a></p>"
         )
     return (
@@ -49,7 +70,7 @@ def _html(
         'style="background:#f1f5f9;padding:24px 12px"><tr><td align="center">'
         '<table role="presentation" width="100%" cellspacing="0" cellpadding="0" '
         'style="max-width:560px;background:#ffffff;border-radius:12px;padding:28px">'
-        f'<tr><td><h1 style="margin:0 0 16px;font-size:20px;line-height:1.3;color:#0f172a">'
+        f'<tr><td>{logo}<h1 style="margin:0 0 16px;font-size:20px;line-height:1.3;color:#0f172a">'
         f"{escape(heading)}</h1>{body}{cta}</td></tr></table>"
         '<p style="max-width:560px;margin:14px auto 0;font-size:12px;line-height:1.5;'
         f'color:#64748b">{footer}</p>'
@@ -68,6 +89,7 @@ def signing_request(
     reason: str,
     signed_before: list[str],
     product: str,
+    brand: dict[str, Any] | None = None,
 ) -> Composed:
     """reason: 'invite', 'resend' or 'reminder'."""
     first = signer_name.split()[0] if signer_name.strip() else "there"
@@ -105,6 +127,8 @@ def signing_request(
         paras=paras,
         button=("Review and sign", url),
         footer=escape(private) + "<br><br>" + escape(footer_text),
+        brand=brand,
+        logo_alt=org_name,
     )
     return Composed(subject, text, html)
 
@@ -169,6 +193,7 @@ def signed_copy(
     sha256: str,
     verify_url: str,
     product: str,
+    brand: dict[str, Any] | None = None,
 ) -> Composed:
     """To each signer when everyone has signed, with the signed PDF attached."""
     first = signer_name.split()[0] if signer_name.strip() else "there"
@@ -188,6 +213,8 @@ def signed_copy(
         paras=[escape(f"Hi {first},"), escape(lead), escape(attached), escape(contact)],
         button=None,
         footer=_check_copy_html(sha256, verify_url) + "<br><br>" + escape(footer_text),
+        brand=brand,
+        logo_alt=org_name,
     )
     return Composed(subject, text, html)
 

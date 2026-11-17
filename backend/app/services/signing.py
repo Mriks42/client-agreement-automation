@@ -31,7 +31,7 @@ from pymongo.asynchronous.database import AsyncDatabase
 from app.config import Settings
 from app.domain.fields import SENDER, SIGNER_ONLY_TYPES
 from app.repo import Tenant, find_file_by_signing_token
-from app.services import events, pdf_engine, storage
+from app.services import branding, events, pdf_engine, storage
 from app.services.email import OutgoingEmail
 from app.services.email import messages as mail
 from app.services.email.outbox import enqueue_email
@@ -325,12 +325,13 @@ async def view(s: Signer, client: ClientInfo) -> dict[str, Any]:
     state = signer_state(file, r)
     if state == "ready":
         await _mark_viewed(s, client)
-    org = await s.tenant.db.orgs.find_one({"_id": s.tenant.org_id}, {"name": 1})
+    org = await branding.load(s.tenant.db, s.tenant.org_id)
     tpl = file["template"]
     viewable = state in VIEWABLE
     return {
         "state": state,
         "org_name": org["name"] if org else "",
+        "branding": branding.public(org),
         "agreement_name": tpl["name"],
         "file_title": file["title"],
         "signer": {"name": r["name"], "email": r["email"], "role_label": r["role_label"]},
@@ -672,7 +673,7 @@ async def handle_signing_email(ctx: JobContext, payload: dict[str, Any]) -> None
         return
     r = updated["recipients"][i]
     settings: Settings = ctx.services["settings"]
-    org = await ctx.db.orgs.find_one({"_id": tenant.org_id}, {"name": 1})
+    org = await branding.load(ctx.db, tenant.org_id)
     org_name = org["name"] if org else settings.email_product_name
     reason = payload["reason"]
     msg = mail.signing_request(
@@ -689,6 +690,7 @@ async def handle_signing_email(ctx: JobContext, payload: dict[str, Any]) -> None
             if x["status"] == "signed"
         ],
         product=settings.email_product_name,
+        brand=branding.public(org, settings.app_base_url),
     )
     result = await ctx.services["email"].send(
         OutgoingEmail(

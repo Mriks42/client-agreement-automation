@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router'
 import { ApiError, errorProblems } from '../api/client'
 import { useConsent, useDecline, useSignView, useSubmitSignature } from '../api/hooks'
@@ -34,13 +34,22 @@ export function SignPage() {
 }
 
 // ---- layout ---------------------------------------------------------------------------------
-function Frame({ org, children }: { org?: string; children: ReactNode }) {
+/** The firm's logo and colour, when it has set them; otherwise exactly the default look. */
+function Frame({ v, children }: { v?: SignView; children: ReactNode }) {
+  const b = v?.branding
+  const style = b?.color
+    ? ({ '--color-brand': b.color, '--color-brand-ink': b.ink, '--color-brand-text': b.text } as CSSProperties)
+    : undefined
   return (
-    <div className="min-h-full bg-slate-100">
+    <div className="min-h-full bg-slate-100" style={style}>
       <header className="border-b border-slate-200 bg-white">
-        <div className="mx-auto flex h-12 max-w-3xl items-center justify-between px-4">
-          <span className="truncate text-sm font-semibold">{org ?? ''}</span>
-          <span className="text-xs text-slate-400">Secured by {PRODUCT_NAME}</span>
+        <div className={`mx-auto flex max-w-3xl items-center justify-between gap-3 px-4 ${b?.logo_url ? 'h-14' : 'h-12'}`}>
+          {b?.logo_url ? (
+            <img src={b.logo_url} alt={v?.org_name ?? ''} className="h-9 w-auto max-w-[60%] object-contain object-left" />
+          ) : (
+            <span className="truncate text-sm font-semibold">{v?.org_name ?? ''}</span>
+          )}
+          <span className="shrink-0 text-xs text-slate-400">Secured by {PRODUCT_NAME}</span>
         </div>
       </header>
       {children}
@@ -67,7 +76,7 @@ function Parties({ v }: { v: SignView }) {
         <li key={i} className="flex items-center gap-2">
           <span
             className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[11px] font-semibold ${
-              p.status === 'signed' ? 'bg-emerald-100 text-emerald-800' : p.you ? 'bg-brand text-white' : 'bg-slate-200 text-slate-600'
+              p.status === 'signed' ? 'bg-emerald-100 text-emerald-800' : p.you ? 'bg-brand text-brand-ink' : 'bg-slate-200 text-slate-600'
             }`}
           >
             {p.status === 'signed' ? '✓' : i + 1}
@@ -154,7 +163,7 @@ function Closed({ v, token }: { v: SignView; token: string }) {
   }
   const c = content[v.state as Exclude<SignView['state'], 'ready'>]
   return (
-    <Frame org={v.org_name}>
+    <Frame v={v}>
       <Panel title={c.title}>
         {c.body}
         <Parties v={v} />
@@ -162,7 +171,7 @@ function Closed({ v, token }: { v: SignView; token: string }) {
       </Panel>
       {(v.state === 'signed' || v.state === 'completed') && v.pages.length > 0 && (
         <details className="mx-auto max-w-3xl px-4 pb-10">
-          <summary className="cursor-pointer text-sm font-medium text-brand">See what you signed</summary>
+          <summary className="cursor-pointer text-sm font-medium text-brand-text">See what you signed</summary>
           <div className="mt-3 space-y-3">
             {v.pages.map((p, i) => (
               <PageImage key={i} token={token} v={v} page={i + 1} size={p} />
@@ -180,7 +189,7 @@ function Consent({ v, token }: { v: SignView; token: string }) {
   const [agree, setAgree] = useState(false)
   const [declining, setDeclining] = useState(false)
   return (
-    <Frame org={v.org_name}>
+    <Frame v={v}>
       <Panel title={`${v.org_name} sent you ${v.agreement_name}`}>
         <p>
           Hi {v.signer.name.split(' ')[0]}, please review the agreement and sign it. It takes a couple of minutes, and
@@ -299,7 +308,7 @@ function Signing({ v, token }: { v: SignView; token: string }) {
   const problems = errorProblems(submit.error)
 
   return (
-    <Frame org={v.org_name}>
+    <Frame v={v}>
       <div className="sticky top-0 z-20 border-b border-slate-200 bg-white/95 backdrop-blur">
         <div className="mx-auto flex max-w-3xl items-center justify-between gap-3 px-4 py-2">
           <div className="min-w-0">
@@ -666,7 +675,7 @@ function BackToFile() {
   const from = params.get('from')
   if (!from || !/^\/files\/[A-Za-z0-9]+$/.test(from)) return null
   return (
-    <Link to={from} className="inline-block text-sm font-medium text-brand hover:underline">
+    <Link to={from} className="inline-block text-sm font-medium text-brand-text hover:underline">
       ← Back to the file
     </Link>
   )

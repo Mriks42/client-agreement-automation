@@ -189,9 +189,13 @@ export type SignState =
 
 export type SignField = Pick<Field, 'id' | 'key' | 'label' | 'type' | 'page' | 'rect' | 'required'>
 
+/** The firm's logo and colour (`color` null when not set: the default look). */
+export type Branding = { logo_url: string | null; color: string | null; ink: string; text: string }
+
 export type SignView = {
   state: SignState
   org_name: string
+  branding: Branding
   agreement_name: string
   file_title: string
   signer: { name: string; email: string; role_label: string }

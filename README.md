@@ -14,7 +14,7 @@ A firm uploads its standard client agreement once. AI finds where every blank an
 3. **Signers sign in order,** from an emailed link, on a phone or a computer. They agree to sign electronically, fill in their parts, and type or draw a signature. Reminders go out on day 2 and day 5, and links expire after 30 days. The firm can copy a signing link, resend, correct an email address, or void the file.
 4. **Everyone gets the signed PDF** with an audit certificate showing who signed, when, from where, and the SHA-256 fingerprints. The file shows "Signed: ready to start work". Anyone can check a copy at [/verify](https://kickoff-r713.onrender.com/verify): the browser works out the PDF's fingerprint, so the PDF never leaves their device.
 5. **Other systems can join in.** With an API key, a CRM or practice manager can open files. Signed webhooks report when each file is sent, signed and complete.
-6. **A whole team can use it.** Invite colleagues from Settings. Each gets their own login, and every file shows who sent it.
+6. **A whole team can use it.** Invite colleagues from Settings. Each gets their own login, and every file shows who sent it. Settings also sets the firm's logo and colour, which signers see on their emails and the signing page.
 7. **AI assistants can use it too.** The [Kickoff MCP server](mcp-server/README.md) lets Claude (or any MCP client) prepare a draft for a client, say which agreements are still waiting, and save the signed PDF. A person still checks and sends every draft.
 
 ## Try it
@@ -142,6 +142,7 @@ client-agreement-automation/
     │   ├── signing.py      Signing order, the signer's steps, reminders, expiry
     │   ├── finalize.py     The signed PDF, its certificate and fingerprints, emailed to everyone
     │   ├── email/          The email texts, sent through Gmail
+    │   ├── branding.py     The firm's logo and colour on signing emails and the signing page
     │   └── webhooks.py     Telling the firm's other systems (plus apikeys.py for the API)
     ├── app/worker/         The background job queue: retries, then shows a way out if a job fails
     ├── app/repo.py         The only way to read the database, so one firm never sees another's data

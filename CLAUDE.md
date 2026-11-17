@@ -22,7 +22,7 @@ _Last updated: Tue Nov 17, 2026, about 06:20 MST. Everything built so far is ver
    - On a match, show the agreement, the file title, the firm, the completion date and the signers' names. Anyone holding that exact PDF already sees all of that.
    - Otherwise: "Not a match: this copy was changed, or wasn't signed with Kickoff."
    - Link to it from the file page and from new delivery emails. Already-signed PDFs never change.
-3. **The firm's logo and colour on emails and the signing page** (about 1.5 h). This was item 12, cut on Nov 15.
+3. **The firm's logo and colour on emails and the signing page** (about 1.5 h). This was item 12, cut on Nov 15. **Built Nov 17 (`services/branding.py`, `api/branding.py`, Settings Branding card, `Frame` in `SignPage.tsx`, `test_branding.py`).**
    - Settings, then Branding: upload a PNG or JPG of 512 KB at most, checked by magic bytes and stored in GridFS, and choose a brand colour (a validated hex, with readable text contrast).
    - Serve the logo publicly at a cache-busted URL.
    - Emails get the logo at the top and the button in the brand colour. The signing page gets the logo in its header and its buttons in the colour.
@@ -251,6 +251,7 @@ backend/
       errors.py          NotFound / Conflict / Invalid, mapped to 404 / 409 / 422 by the routers
       finalize.py        The finalize_file job: signed PDF, audit certificate, SHA-256, everyone's copy
       email/             EmailSender protocol, gmail_api.py, console.py, messages.py (email text), outbox.py (enqueue_email)
+      branding.py        Logo (magic bytes, GridFS, public cache-busted URL) and colour (contrast-checked ink) for emails and the signing page
       webhooks.py        Outbound webhooks: endpoint settings, URL safety check, HMAC signing, the deliver_webhook job
       apikeys.py         API keys (SHA-256 stored, shown once), authenticate for /api/v1
       api_view.py        A file as the API and webhooks show it
