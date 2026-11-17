@@ -97,6 +97,14 @@ async def test_a_file_opened_through_the_api_waits_for_a_person_to_send_it(
     pdf = await api.get(f"/api/v1/files/{f['id']}/signed.pdf", headers=bearer(key))
     assert pdf.status_code == 409  # not signed yet
 
+    listed = (await api.get("/api/v1/files", headers=bearer(key))).json()
+    assert [x["id"] for x in listed] == [f["id"]]
+    waiting = "/api/v1/files?status=sent,partially_signed"
+    assert [x["id"] for x in (await api.get(waiting, headers=bearer(key))).json()] == [f["id"]]
+    drafts = (await api.get("/api/v1/files?status=draft", headers=bearer(key))).json()
+    assert drafts == []
+    assert (await api.get("/api/v1/files?status=nope", headers=bearer(key))).status_code == 422
+
     bad = await api.post("/api/v1/files", json={**body, "signers": []}, headers=bearer(key))
     assert bad.status_code == 422 and bad.json()["detail"]["problems"]
     missing = {**body, "template_id": "6afc10264451c389aa140678"}
@@ -113,6 +121,7 @@ async def test_another_companys_key_sees_nothing(
     await signup(second_client, email="other@example.com", org_name="Other Test Co")
     key_b = await new_key(second_client)
     assert (await second_client.get("/api/v1/templates", headers=bearer(key_b))).json() == []
+    assert (await second_client.get("/api/v1/files", headers=bearer(key_b))).json() == []
     for path in (f"/api/v1/files/{f['id']}", f"/api/v1/files/{f['id']}/signed.pdf"):
         assert (await second_client.get(path, headers=bearer(key_b))).status_code == 404
     r = await second_client.post("/api/v1/files", json=file_body(t), headers=bearer(key_b))

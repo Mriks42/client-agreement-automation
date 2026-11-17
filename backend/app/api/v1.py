@@ -8,7 +8,7 @@ Interactive reference: /api/docs.
 
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Header, HTTPException, Request, Response
+from fastapi import APIRouter, Header, HTTPException, Query, Request, Response
 from pydantic import BaseModel, Field, StringConstraints
 from pymongo.errors import DuplicateKeyError
 
@@ -129,6 +129,38 @@ async def open_file(
             status_code=422, detail={"message": "Fix these first:", "problems": exc.problems}
         ) from exc
     return file_view(f, _base(request))
+
+
+STATUSES = ("draft", "sent", "partially_signed", "completed", "declined", "expired", "voided")
+
+
+@router.get("/files")
+async def list_files(
+    caller: ApiCallerDep,
+    request: Request,
+    status: Annotated[
+        str | None,
+        Query(
+            max_length=200,
+            description="Comma-separated statuses, e.g. sent,partially_signed for files "
+            "waiting on a signature",
+        ),
+    ] = None,
+    limit: Annotated[int, Query(ge=1, le=100)] = 25,
+) -> list[dict[str, Any]]:
+    """Files, most recently updated first."""
+    query: dict[str, Any] = {}
+    if status:
+        wanted = [s.strip() for s in status.split(",") if s.strip()]
+        unknown = [s for s in wanted if s not in STATUSES]
+        if unknown:
+            raise HTTPException(
+                status_code=422,
+                detail=f"Unknown status {', '.join(unknown)}. Use: {', '.join(STATUSES)}.",
+            )
+        query["status"] = {"$in": wanted}
+    docs = await caller.tenant.find("files", query, sort=[("updated_at", -1)], limit=limit)
+    return [file_view(f, _base(request)) for f in docs]
 
 
 @router.get("/files/{file_id}")
