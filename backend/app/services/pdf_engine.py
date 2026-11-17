@@ -887,6 +887,9 @@ def latin1(text: str) -> str:
     return "".join(out)
 
 
+_READABLE_PT = 8.0  # below this a value may use the space beside it
+
+
 def _right_limit(page: pymupdf.Page, r: Box, words: list[Any], others: list[Box]) -> float:
     """How far right a one-line value written in `r` can run: to the next word, form field or
     other value on its line, and never past the page's text column."""
@@ -927,10 +930,15 @@ def _write(page: pymupdf.Page, s: Stamp, right: float | None = None) -> None:
     size = min(
         r.height * (0.8 if s.kind == "signature" else 0.72), 20.0 if font == "tiit" else 11.0
     )
+    natural = size
     width = pymupdf.get_text_length(text, fontname=font, fontsize=size)
-    room = r.width if right is None else max(r.width, right - r.x0)
-    if width > room - 3:
-        size = max(4.0, size * (room - 3) / width)
+    if width > r.width - 3:
+        size = natural * (r.width - 3) / width
+        # Shrinking a little keeps a value on its line. Only when that would make it hard to
+        # read does a value with room run on into the empty space beside it.
+        if right is not None and size < min(_READABLE_PT, natural):
+            size = max(size, min(natural, natural * (right - r.x0 - 3) / width))
+        size = max(4.0, size)
     baseline = r.y1 - max(1.5, r.height * 0.18)
     page.insert_text((r.x0 + 1.5, baseline), text, fontsize=size, fontname=font, color=color)
 

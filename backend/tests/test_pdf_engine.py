@@ -335,15 +335,23 @@ def test_removing_placeholders_keeps_the_words_on_the_lines_around_them(
 
 def test_a_long_value_runs_on_into_empty_space_but_never_over_text() -> None:
     # Blind test, accounting letter: "[Date]" alone on its line became a 4 pt "November 20, 2026".
-    rows = ["[Date]", "the [Year] tax year and our duties", "in [County], [State] courts only"]
+    rows = [
+        "[Date]",
+        "the [Year] tax year and our duties",
+        "in [County], [State] courts only",
+        "Effective Date: ____________________",
+    ]
 
     def draw(page: pymupdf.Page) -> None:
         for i, text in enumerate(rows):
             page.insert_text((72, 100 + 30 * i), text, fontsize=12, fontname="tiro")
 
     data = make_pdf(draw)
-    holders = {s.text: s for s in slots_of(data) if s.kind == "placeholder"}
+    slots = slots_of(data)
+    holders = {s.text: s for s in slots if s.kind == "placeholder"}
+    holders["line"] = next(s for s in slots if s.kind == "underscore")
     values = {
+        "line": "December 31, 2026",
         "[Date]": "November 20, 2026",
         "[Year]": "Sample value",
         "[County]": "Maricopa County",
@@ -373,6 +381,8 @@ def test_a_long_value_runs_on_into_empty_space_but_never_over_text() -> None:
     assert spans["Sample value"][2] <= starts["tax"]  # mid-sentence: stops before the next word
     assert spans["Maricopa County"][2] <= starts[","] + 0.5
     assert spans["Arizona"][2] <= starts["courts"]
+    # A blank line that fits the value at a readable size keeps it on the line.
+    assert spans["December 31, 2026"][2] <= holders["line"].bbox.x1 + 0.5
 
 
 def test_party_detail_labels_with_empty_space_are_blanks() -> None:
