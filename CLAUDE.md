@@ -54,6 +54,12 @@ _Last updated: Tue Nov 17, 2026, about 02:30 MST. The blind-test round is done. 
 - **Polish list: done** (Nov 17, about 03:15). Values the firm fills in run on into the empty space to their right instead of printing tiny (`pdf_engine._right_limit`, sender values only, through `Stamp.room`). The added signature page writes curly quotes in plain form. The landing page no longer has the "System status" box. 129 backend tests pass.
 - **Hard stops (moved by the owner on Nov 17):** feature freeze Tue 14:00, final deploy verified by 17:00 (Render maintenance from 19:00), documentation only after 17:00, last commit by 22:00 MST.
 
+**Second blind-test round (Nov 17, about 05:20): passed.** Three software-subscription agreements shaped like MIND's might be (MIND, m-i-n-d.ai, is Astra AI's own product). All three reached a signed PDF on the first run with 0 reviewer edits and no blockers:
+- Common Paper Cloud Service Agreement with AI terms (Word, 13 pages, 112 s): one placeholder missed, flagged by the AI.
+- Common Paper Order Form (Word, 52 s).
+- A fillable SaaS subscription agreement with a pricing table (PDF, 33 s).
+The files are in `backend/samples/blind2/` (git-ignored).
+
 **API and webhooks (Nov 17, about 03:45): built, lean** (DECISIONS.md item 10, D5).
 - **Settings page** (`/settings`, `api/settings.py`): API keys (create shown once, revoke), the webhook endpoint (signing secret, new secret, test event, remove) and the delivery log (the last 25 `deliver_webhook` jobs, with Retry on one that gave up). It also has a quick-start for developers, and the full reference is at `/api/docs`.
 - **Public API** (`api/v1.py`, `Authorization: Bearer kk_live_...`): `GET /api/v1/templates`, `POST /api/v1/files` (`Idempotency-Key` header, `metadata`; it makes a draft marked as from the API, and the draft page says so), `GET /api/v1/files/{id}`, `GET /api/v1/files/{id}/signed.pdf`. Keys are found by SHA-256 (`repo.find_api_key`, the second unscoped lookup) and act for their creator.
