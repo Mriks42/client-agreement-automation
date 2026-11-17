@@ -4,7 +4,7 @@ Context for anyone working in this repo, human or AI. `DECISIONS.md` explains *w
 
 ## Current status (update at the end of every work session)
 
-_Last updated: Tue Nov 17, 2026, about 05:40 MST. Everything planned is built, verified on the live app, documented and pushed. Stop adding features: from here on, only checks and the owner's last steps._
+_Last updated: Tue Nov 17, 2026, about 05:45 MST. Everything planned so far is built, verified on the live app, documented and pushed. The owner moved the feature freeze to 21:30 (see Hard stops), so more features may land today._
 
 **Done on Nov 17 (details below):**
 - The first blind-test round, with two blocker fixes.
@@ -16,11 +16,11 @@ _Last updated: Tue Nov 17, 2026, about 05:40 MST. Everything planned is built, v
 - SUBMISSION.md, the text for the submission form.
 
 **Left for the owner:**
-1. **Turn off auto-deploy in Render**, so a late commit can't redeploy during the 19:00 maintenance.
+1. **Turn off auto-deploy in Render after the final verified deploy (22:30)**, so a docs-only commit can't redeploy at the last minute.
 2. **Check the Anthropic balance** in the console; keep at least $2 for grading. Nov 17 used 10 Claude analyses: 7 in the first round and the CPAi rerun, plus 3 in the second round.
 3. **Tools used:** if any assistant besides Claude Code was used (Gemini, ChatGPT, ...), add it to SUBMISSION.md and DECISIONS.md.
 4. **Submit:** paste SUBMISSION.md into the form, with https://kickoff-r713.onrender.com and https://github.com/Mriks42/client-agreement-automation.
-- **Hard stops (moved by the owner):** features stop at 14:00, the final deploy is verified by 17:00, documentation only after that, and the last commit is by 22:00 MST.
+- **Hard stops (moved again by the owner on Nov 17):** new features until 21:00 MST (each deployed and checked live as it lands); no pushes from 19:00 to 20:00 (Render maintenance: dashboard, API and deploys are unavailable for up to 30 min, but running services aren't affected, per status.render.com); final deploy verified with `scripts.live_check` by 22:30; documentation only after that; last commit by 23:00 MST. The official deadline is Nov 18 00:00 MST, and Anthony grades whatever is live then.
 
 **Day 5 (finalize) is done, and verified on the live app.**
 - **The job** (`services/finalize.py`, registered in `worker/handlers.py`; 5 attempts, a 10-minute lease):
