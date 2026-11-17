@@ -4,13 +4,23 @@ Context for anyone working in this repo, human or AI. `DECISIONS.md` explains *w
 
 ## Current status (update at the end of every work session)
 
-_Last updated: Tue Nov 17, 2026, about 02:30 MST. The blind-test round is done. All six unseen agreements reached a signed PDF on the live app, and the two blockers it found are fixed and deployed._
+_Last updated: Tue Nov 17, 2026, about 05:40 MST. Everything planned is built, verified on the live app, documented and pushed. Stop adding features: from here on, only checks and the owner's last steps._
 
-**Next session (before the 14:00 feature freeze; the owner moved it from 12:00 on Nov 17):**
-1. ~~The polish list~~: done, see below.
-2. ~~The API and webhooks~~: built and verified live, see "API and webhooks" below.
-3. Final deploy, verified by 17:00: run `scripts.live_check`, then turn off auto-deploy.
-- **Credit:** the owner topped up $5, so the balance was about $7. The round ran 7 Claude analyses (the six agreements, plus one CPAi rerun). From past per-document costs that's an estimated $1–2; the live API doesn't expose `detection.llm`. Read the console balance and keep at least $2.
+**Done on Nov 17 (details below):**
+- The first blind-test round, with two blocker fixes.
+- Polish.
+- The API and webhooks.
+- A second blind-test round on software-subscription agreements, shaped like MIND's (Astra AI's product).
+- The MCP server.
+- Team members.
+- SUBMISSION.md, the text for the submission form.
+
+**Left for the owner:**
+1. **Turn off auto-deploy in Render**, so a late commit can't redeploy during the 19:00 maintenance.
+2. **Check the Anthropic balance** in the console; keep at least $2 for grading. Nov 17 used 10 Claude analyses: 7 in the first round and the CPAi rerun, plus 3 in the second round.
+3. **Tools used:** if any assistant besides Claude Code was used (Gemini, ChatGPT, ...), add it to SUBMISSION.md and DECISIONS.md.
+4. **Submit:** paste SUBMISSION.md into the form, with https://kickoff-r713.onrender.com and https://github.com/Mriks42/client-agreement-automation.
+- **Hard stops (moved by the owner):** features stop at 14:00, the final deploy is verified by 17:00, documentation only after that, and the last commit is by 22:00 MST.
 
 **Day 5 (finalize) is done, and verified on the live app.**
 - **The job** (`services/finalize.py`, registered in `worker/handlers.py`; 5 attempts, a 10-minute lease):
@@ -54,7 +64,7 @@ _Last updated: Tue Nov 17, 2026, about 02:30 MST. The blind-test round is done. 
 - **Polish list: done** (Nov 17, about 03:15). Values the firm fills in run on into the empty space to their right instead of printing tiny (`pdf_engine._right_limit`, sender values only, through `Stamp.room`). The added signature page writes curly quotes in plain form. The landing page no longer has the "System status" box. 129 backend tests pass.
 - **Hard stops (moved by the owner on Nov 17):** feature freeze Tue 14:00, final deploy verified by 17:00 (Render maintenance from 19:00), documentation only after 17:00, last commit by 22:00 MST.
 
-**Team members (Nov 17, about 05:35): built** (`services/team.py`, `api/settings.py` /team, `api/auth.py` /invites and /join, Settings Team card, `/join/:token` page). An invitation link's token is minted in the `team_invite_email` job or by Copy invite link, and only its hash is stored (`repo.find_invite`, the third unscoped lookup). Invitations last 7 days. Join creates the user in the invite's org and marks the invite accepted conditionally. Remove deletes the user, their sessions and their API keys. `users` and `invites` are now tenant collections. 4 tests in `test_team.py`, and the flow was checked locally in Chrome. Verify it live after the deploy.
+**Team members (Nov 17, about 05:35): built** (`services/team.py`, `api/settings.py` /team, `api/auth.py` /invites and /join, Settings Team card, `/join/:token` page). An invitation link's token is minted in the `team_invite_email` job or by Copy invite link, and only its hash is stored (`repo.find_invite`, the third unscoped lookup). Invitations last 7 days. Join creates the user in the invite's org and marks the invite accepted conditionally. Remove deletes the user, their sessions and their API keys. `users` and `invites` are now tenant collections. 4 tests in `test_team.py`, and the flow was checked locally in Chrome. **Live:** invite (the email job didn't die), Copy invite link, join on an iPhone 13 viewport, the company's files visible, remove, back to login. The account was left with one member.
 
 **MCP server (Nov 17, about 05:30): built and verified live** (DECISIONS.md item 16). `mcp-server/` is a separate package (official `mcp` SDK, FastMCP, stdio, Python 3.13). Its tools are `list_agreements`, `open_file` (a draft only; a `reference` becomes the Idempotency-Key), `list_files` ("waiting" = sent + partially_signed, through the new `GET /api/v1/files?status=`), `get_file` and `download_signed_agreement` (verifies the SHA-256). Errors are `ToolError` with Kickoff's own message. It has 5 tests against an `httpx.MockTransport` fake and its own CI job. The live check ran a real MCP client over stdio, with the server installed by `uvx --from git+https://github.com/Mriks42/client-agreement-automation#subdirectory=mcp-server kickoff-mcp`, through the whole flow; the temporary key was revoked.
 
