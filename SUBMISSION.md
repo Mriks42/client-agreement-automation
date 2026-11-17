@@ -81,7 +81,7 @@ Claude is used in one place, once per agreement. When the firm uploads it, Claud
 ## Known limitations
 
 - A long value in a short placeholder in mid-sentence (like `$[X], of which`) still shrinks to fit, because the document isn't re-typeset. On a line of its own, it runs on into the empty space.
-- Very short blanks (under 15 pt, like `___` for initials) aren't found, and are added in the editor.
+- A two-underscore blank, like the `(__)` in "thirty (__) days", isn't found and is added in the editor. Three or more underscores are found, even in small type.
 - Email comes from a dedicated Gmail account on the free tier. Production would use a transactional email provider on the firm's own domain.
 
 The rest, with what production would need, is in DECISIONS.md under "Known limitations".

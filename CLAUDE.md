@@ -28,7 +28,7 @@ _Last updated: Tue Nov 17, 2026, about 06:20 MST. Everything built so far is ver
    - Emails get the logo at the top and the button in the brand colour. The signing page gets the logo in its header and its buttons in the colour.
    - "Secured by Kickoff" stays.
    - With no branding set, everything looks exactly as today.
-4. **Find very short blanks** (about 1.5 h). This is the known limitation: underscore runs under 15 pt wide, like `___` for initials, aren't candidates (`pdf_engine`, the `box.width >= 15` check and `_MIN_UNDERSCORES`).
+4. **Find very short blanks** (about 1.5 h). **Built Nov 17 (`_MIN_UNDERSCORE_WIDTH` = 8 pt in `pdf_engine`, the `short_blanks` eval fixture, a test in `test_pdf_engine.py`). Online eval approved by the owner: 82/82, 0 false positives, about 48¢ (the report in `evals/out/` is git-ignored).** This is the known limitation: underscore runs under 15 pt wide, like `___` for initials, aren't candidates (`pdf_engine`, the `box.width >= 15` check and `_MIN_UNDERSCORES`).
    - Lower the threshold carefully, e.g. accept 3+ underscores at 8 pt or more.
    - Add an eval fixture with initials and option-mark blanks (`evals/make_fixtures.py`).
    - Run the offline eval before and after (free).
@@ -88,7 +88,7 @@ _Last updated: Tue Nov 17, 2026, about 06:20 MST. Everything built so far is ver
   - Filling a placeholder removed words on the lines above and below it: 26 words on the CPAi letter, so the signed wording changed. In tightly set text the extraction boxes overlap the next line, and redaction removes every glyph it touches. Removal now clears only `pdf_engine._ink_band`, a band from the baseline to about x-height that's never larger than the old box. A sweep of about 300 placeholders in 10 agreements found 0 words lost and 0 placeholder text left.
   - "$[X]" for the fee was read as a ticked box, so the fee was written over the printed "[X]". A bracket box labelled as a value is now removed like a placeholder (`mapper._rect`), and one labelled as a checkbox keeps its brackets.
 - **Fixed afterwards in the polish** (see the polish list): tiny values in short placeholders, unless text follows them on the same line; "?" around a curly-quoted title on the added signature page.
-- **Not fixed** (DECISIONS.md, Known limitations): a value in a mid-sentence placeholder still shrinks; blanks under 15 pt aren't found; optional signers belong to the template; dropdown options aren't offered; a scan's hint text stays under values; role names can echo placeholders ("[Client Name]").
+- **Not fixed** (DECISIONS.md, Known limitations): a value in a mid-sentence placeholder still shrinks; two-underscore blanks aren't found (3+ underscores are, from 8 pt, since Nov 17); optional signers belong to the template; dropdown options aren't offered; a scan's hint text stays under values; role names can echo placeholders ("[Client Name]").
 - Tests: 127 backend tests pass (7 new), plus ruff and mypy. The offline eval is unchanged at 71/72 without the Docker-only Word fixture.
 
 **Cuts applied (Nov 15):** the "if time allows" items, the verify page, logo and colour branding, bounce detection, and the template-versioning UI. Don't build them. The API and webhooks stay in scope, scheduled last. See DECISIONS.md "If behind schedule".
