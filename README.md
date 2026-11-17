@@ -47,6 +47,106 @@ curl https://kickoff-r713.onrender.com/api/v1/files \
 
 Everything above is live. Before release I ran a blind test on six public agreements the system had never seen; the results are in the DECISIONS.md change log. Known limitations, and what production would need, are under "Known limitations" in [DECISIONS.md](DECISIONS.md).
 
+## How it works
+
+Kickoff is one web app with three parts: a **website** that people click, a **server** that does the work, and a **database**. Anything slow, or that talks to the outside world (the AI, email, other systems), runs as a **background job** that retries until it succeeds. A slow AI response or a hiccup at Gmail never breaks what someone is doing.
+
+### The parts
+
+```mermaid
+flowchart LR
+    staff["Firm staff<br/>upload, review, send"]
+    signers["Signers<br/>on a phone or computer"]
+    other["The firm's other systems<br/>CRM, practice manager"]
+
+    subgraph kickoff["Kickoff: one service on Render"]
+        web["Website<br/>React"]
+        api["Server<br/>Python, FastAPI"]
+        jobs["Background jobs<br/>queue with retries"]
+    end
+
+    db[("MongoDB Atlas<br/>data and PDFs")]
+    claude["Claude<br/>reads the agreement"]
+    gmail["Gmail API<br/>sends the emails"]
+
+    staff --> web
+    signers --> web
+    web --> api
+    other -- "API key" --> api
+    api --> db
+    api --> jobs
+    jobs --> db
+    jobs --> claude
+    jobs --> gmail
+    jobs -- "signed webhooks" --> other
+```
+
+### One agreement's journey
+
+The AI does one job, once per agreement: it works out what each blank is and who fills it in. A person approves that before it's ever used. Everything after that is ordinary, predictable software, because signatures and their audit trail have to behave the same way every time.
+
+```mermaid
+flowchart TD
+    A["Firm uploads its agreement<br/>PDF or Word, once"] --> B["AI reads it<br/>every blank: what it is, who fills it<br/>who signs, and in what order"]
+    B --> C["A person checks the fields<br/>and approves"]
+    C --> D["For each new client: open a file<br/>and fill in their details"]
+    D --> E["Preview the exact PDF<br/>then Confirm and send"]
+    E --> F["Client signs from an email link<br/>reminders on day 2 and day 5"]
+    F --> G["Firm countersigns"]
+    G --> H["Signed PDF with audit certificate<br/>emailed to everyone"]
+    H --> I["File marked: ready to start work<br/>webhook tells the firm's other systems"]
+
+    classDef ai fill:#fef3c7,stroke:#b45309,color:#1f2937
+    classDef person fill:#dbeafe,stroke:#1d4ed8,color:#1f2937
+    classDef done fill:#dcfce7,stroke:#15803d,color:#1f2937
+    class B ai
+    class C,E person
+    class H,I done
+```
+
+Yellow is the AI step, blue is where a person confirms, and green is the result.
+
+### Where things are in the code
+
+```text
+client-agreement-automation/
+├── README.md               You are here: what it does and how to try it
+├── DECISIONS.md            Why it's built this way: what's included, what's left out, and why
+├── CLAUDE.md               How to work on the code
+├── Dockerfile, render.yaml How it's packaged and deployed
+│
+├── frontend/src/           THE WEBSITE
+│   ├── pages/              One file per screen: upload, review, files, new file,
+│   │                       file page, signing page, settings
+│   └── components/         Shared pieces: the field editor, the signature pad
+│
+└── backend/                THE SERVER
+    ├── app/api/            The server's entry points, one file per area
+    │                       (sign-up, agreements, files, signing, settings, public API)
+    ├── app/services/       The work itself:
+    │   ├── detection/      The AI step: asks Claude what each blank is (keyword rules as a fallback)
+    │   ├── pdf_engine.py   Reads PDFs, finds blanks, writes values, adds the certificate
+    │   ├── templates.py    Upload, analyze, review, approve
+    │   ├── files.py        Open a file, preview, send, resend, void
+    │   ├── signing.py      Signing order, the signer's steps, reminders, expiry
+    │   ├── finalize.py     The signed PDF, its certificate and fingerprints, emailed to everyone
+    │   ├── email/          The email texts, sent through Gmail
+    │   └── webhooks.py     Telling the firm's other systems (plus apikeys.py for the API)
+    ├── app/worker/         The background job queue: retries, then shows a way out if a job fails
+    ├── app/repo.py         The only way to read the database, so one firm never sees another's data
+    ├── tests/              Automatic tests, run on every change (GitHub Actions)
+    └── evals/              Sample agreements that measure how well the AI finds blanks
+```
+
+| Step in the journey | Where it happens |
+|---|---|
+| Upload and AI analysis | `templates.py`, `pdf_engine.py`, `detection/` |
+| Review and approve | `frontend/src/components/editor/`, `templates.py` |
+| Open a file, preview, send | `files.py`, `pdf_engine.py` |
+| Emails, reminders, signing | `signing.py`, `email/`, `frontend/src/pages/SignPage.tsx` |
+| Signed PDF and certificate | `finalize.py`, `pdf_engine.py` |
+| Telling other systems | `webhooks.py`, `api/v1.py` |
+
 ## Run it locally
 
 You need Docker, [uv](https://docs.astral.sh/uv/), and Node 22 or newer.
