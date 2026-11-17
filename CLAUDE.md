@@ -6,7 +6,7 @@ Context for anyone working in this repo, human or AI. `DECISIONS.md` explains *w
 
 _Last updated: Tue Nov 17, 2026, about 02:30 MST. The blind-test round is done. All six unseen agreements reached a signed PDF on the live app, and the two blockers it found are fixed and deployed._
 
-**Next session (before the 12:00 freeze):**
+**Next session (before the 14:00 feature freeze; the owner moved it from 12:00 on Nov 17):**
 1. ~~The polish list~~: done, see below.
 2. ~~The API and webhooks~~: built and verified live, see "API and webhooks" below.
 3. Final deploy, verified by 17:00: run `scripts.live_check`, then turn off auto-deploy.
@@ -50,9 +50,9 @@ _Last updated: Tue Nov 17, 2026, about 02:30 MST. The blind-test round is done. 
 **Cuts applied (Nov 15):** the "if time allows" items, the verify page, logo and colour branding, bounce detection, and the template-versioning UI. Don't build them. The API and webhooks stay in scope, scheduled last. See DECISIONS.md "If behind schedule".
 
 **Remaining schedule:**
-- **Tue morning, before the 12:00 freeze:** the polish list, then the API and webhooks or their cut.
+- **Tue, before the 14:00 feature freeze:** blind tests on software-subscription agreements shaped like MIND's (m-i-n-d.ai, Astra AI's product), then a Kickoff MCP server over /api/v1, the submission description, and team members if there's time.
 - **Polish list: done** (Nov 17, about 03:15). Values the firm fills in run on into the empty space to their right instead of printing tiny (`pdf_engine._right_limit`, sender values only, through `Stamp.room`). The added signature page writes curly quotes in plain form. The landing page no longer has the "System status" box. 129 backend tests pass.
-- **Hard stops:** feature freeze Tue 12:00, final deploy verified by 17:00, last commit by 20:00 MST.
+- **Hard stops (moved by the owner on Nov 17):** feature freeze Tue 14:00, final deploy verified by 17:00 (Render maintenance from 19:00), documentation only after 17:00, last commit by 22:00 MST.
 
 **API and webhooks (Nov 17, about 03:45): built, lean** (DECISIONS.md item 10, D5).
 - **Settings page** (`/settings`, `api/settings.py`): API keys (create shown once, revoke), the webhook endpoint (signing secret, new secret, test event, remove) and the delivery log (the last 25 `deliver_webhook` jobs, with Retry on one that gave up). It also has a quick-start for developers, and the full reference is at `/api/docs`.
@@ -152,7 +152,7 @@ A multi-tenant web app that gets a firm's standard client agreement signed on ev
 
 ## Hard constraints
 
-- **Deadline: Wed Nov 18, 2026 00:00 America/Phoenix.** Any commit after that disqualifies the submission. Features freeze at Tue Nov 17 12:00. **Final deploy, verified live, by Tue 17:00**, because Render has infrastructure maintenance from Nov 17 19:00 MST. Final commit and push by Tue 20:00.
+- **Deadline: Wed Nov 18, 2026 00:00 America/Phoenix.** Any commit after that disqualifies the submission. Features freeze at Tue Nov 17 14:00. **Final deploy, verified live, by Tue 17:00**, because Render has infrastructure maintenance from Nov 17 19:00 MST. Documentation only after 17:00. Final commit and push by Tue 22:00.
 - **Test data only.** Never put real people's names, emails, addresses or signatures in fixtures, seeds, tests, logs or screenshots. Use obviously fake data such as `jane.client@example.com` or "Acme Test Co".
 - The scope is fixed in `DECISIONS.md`. Adding or dropping a feature means updating `DECISIONS.md` in the same commit.
 
