@@ -13,6 +13,7 @@ import { EditFilePage, NewFilePage } from './pages/NewFilePage'
 import { NotFoundPage } from './pages/NotFoundPage'
 import { SignPage } from './pages/SignPage'
 import { TemplatePage } from './pages/TemplatePage'
+import { SettingsPage } from './pages/SettingsPage'
 import { TemplatesPage } from './pages/TemplatesPage'
 import { UploadPage } from './pages/UploadPage'
 
@@ -41,6 +42,7 @@ const router = createBrowserRouter([
       { path: '/templates', element: <TemplatesPage /> },
       { path: '/templates/new', element: <UploadPage /> },
       { path: '/templates/:id', element: <TemplatePage /> },
+      { path: '/settings', element: <SettingsPage /> },
     ],
   },
   { path: '*', element: <NotFoundPage /> },

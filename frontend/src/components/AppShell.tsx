@@ -40,6 +40,9 @@ export function AppShell() {
             <NavLink to="/templates" className={navCls}>
               Agreements
             </NavLink>
+            <NavLink to="/settings" className={navCls}>
+              Settings
+            </NavLink>
           </nav>
           <div className="ml-auto flex items-center gap-3 text-sm">
             <span className="hidden text-slate-500 sm:inline">

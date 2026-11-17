@@ -69,6 +69,16 @@ function Draft({ file: f }: { file: FileDetail }) {
       <div className="min-w-0 space-y-3">
         <Alert tone="info" title="Check the agreement, then send it">
           These pages are exactly what {first?.name ?? 'the first signer'} will receive. Nothing has been sent yet.
+          {f.api && (
+            <span className="mt-1 block">
+              Opened through the API with the key “{f.api.key_name}”
+              {Object.keys(f.api.metadata).length > 0 &&
+                ` (${Object.entries(f.api.metadata)
+                  .map(([k, v]) => `${k}: ${v}`)
+                  .join(', ')})`}
+              .
+            </span>
+          )}
         </Alert>
         {f.missing.length > 0 && (
           <Alert tone="warning" title={`${f.missing.length} blank${f.missing.length === 1 ? ' is' : 's are'} empty`}>

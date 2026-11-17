@@ -138,6 +138,7 @@ export type FileSummary = {
   updated_at: string
   sent_at: string | null
   completed_at: string | null
+  created_via: 'app' | 'api'
 }
 
 export type FileDetail = FileSummary & {
@@ -165,6 +166,7 @@ export type FileDetail = FileSummary & {
   final_sha256: string | null
   /** Why making the signed PDF failed; the file page offers Try again. */
   finalize_error: string | null
+  api: { key_name: string; metadata: Record<string, string> } | null
   events: FileEvent[]
 }
 
@@ -209,3 +211,35 @@ export type SignView = {
 }
 
 export type Mark = { kind: 'typed'; text: string } | { kind: 'drawn'; png: string }
+
+// ---- settings: API keys and webhooks --------------------------------------------------------
+export type ApiKey = {
+  id: string
+  name: string
+  prefix: string
+  created_at: string
+  created_by_name: string
+  last_used_at: string | null
+  revoked_at: string | null
+}
+
+export type NewApiKey = ApiKey & { key: string }
+
+export type WebhookSettings = {
+  endpoint: { url: string; secret: string; created_at: string; updated_at: string } | null
+  events: string[]
+}
+
+export type WebhookDelivery = {
+  id: string
+  event_id: string
+  event_type: string
+  file_id: string | null
+  status: 'pending' | 'running' | 'done' | 'dead'
+  attempts: number
+  status_code: number | null
+  last_error: string | null
+  created_at: string
+  updated_at: string
+  next_attempt_at: string | null
+}

@@ -1,16 +1,20 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, ApiError } from './client'
 import type {
+  ApiKey,
   Field,
   FileDetail,
   FileInput,
   FileSummary,
   Mark,
   Me,
+  NewApiKey,
   Role,
   SignView,
   Template,
   TemplateSummary,
+  WebhookDelivery,
+  WebhookSettings,
 } from './types'
 
 // ---- session --------------------------------------------------------------------------------
@@ -258,4 +262,72 @@ export function useDecline(token: string) {
   return useSignMutation(token, (vars: { reason: string }) =>
     api.post<SignView>(`/api/sign/${token}/decline`, vars),
   )
+}
+
+// ---- settings: API keys and webhooks --------------------------------------------------------
+export function useApiKeys() {
+  return useQuery({ queryKey: ['api-keys'], queryFn: () => api.get<ApiKey[]>('/api/settings/api-keys') })
+}
+
+export function useCreateApiKey() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (name: string) => api.post<NewApiKey>('/api/settings/api-keys', { name }),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ['api-keys'] }),
+  })
+}
+
+export function useRevokeApiKey() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => api.delete<ApiKey>(`/api/settings/api-keys/${id}`),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ['api-keys'] }),
+  })
+}
+
+export function useWebhook() {
+  return useQuery({ queryKey: ['webhook'], queryFn: () => api.get<WebhookSettings>('/api/settings/webhook') })
+}
+
+export function useSaveWebhook() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (body: { url: string; rotate_secret?: boolean }) =>
+      api.put<WebhookSettings>('/api/settings/webhook', body),
+    onSuccess: (data) => qc.setQueryData(['webhook'], data),
+  })
+}
+
+export function useDeleteWebhook() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: () => api.delete<null>('/api/settings/webhook'),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ['webhook'] }),
+  })
+}
+
+export function useTestWebhook() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: () => api.post<{ queued: boolean }>('/api/settings/webhook/test'),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ['webhook-deliveries'] }),
+  })
+}
+
+export function useWebhookDeliveries(enabled: boolean) {
+  return useQuery({
+    queryKey: ['webhook-deliveries'],
+    queryFn: () => api.get<WebhookDelivery[]>('/api/settings/webhook/deliveries'),
+    enabled,
+    // Keep the log moving while anything is still being delivered.
+    refetchInterval: (q) => (q.state.data?.some((d) => d.status === 'pending' || d.status === 'running') ? 4000 : 30000),
+  })
+}
+
+export function useRetryDelivery() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => api.post<{ queued: boolean }>(`/api/settings/webhook/deliveries/${id}/retry`),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ['webhook-deliveries'] }),
+  })
 }
