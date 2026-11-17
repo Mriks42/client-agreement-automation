@@ -4,7 +4,41 @@ Context for anyone working in this repo, human or AI. `DECISIONS.md` explains *w
 
 ## Current status (update at the end of every work session)
 
-_Last updated: Tue Nov 17, 2026, about 05:45 MST. Everything planned so far is built, verified on the live app, documented and pushed. The owner moved the feature freeze to 21:30 (see Hard stops), so more features may land today._
+_Last updated: Tue Nov 17, 2026, about 06:20 MST. Everything built so far is verified on the live app, documented and pushed. The owner moved the feature freeze to 21:30 (see Hard stops), and four more features are planned for the next session._
+
+**Next session: build these four, in this order, approved by the owner on Nov 17.** Finish, deploy and verify each one live before starting the next. Stop adding features at 21:30 MST and drop whatever isn't solid by then; recording a cut in DECISIONS.md beats shipping something half-working. Anthony's path (sign up, upload, approve, new file, send, sign, signed PDF) must keep working after every deploy, so run `scripts.live_check` after each one.
+
+1. **Saved clients** (an address book, about 2 h). Design agreed with the owner:
+   - A tenant collection `clients` holds company, contact name, contact email, address, phone and title.
+   - It's saved and updated automatically when a file is **sent**: from the client-kind signer's name and email, plus the values of the *client-side identity* fields.
+   - On **New file**, a "Client" search box at the top. Picking a client fills the client signer's name and email, and the client-side identity fields.
+   - **Never fill job-specific fields** (dates, fees, descriptions, deliverables), and **never fill firm-side fields** (labels mentioning consultant, provider, firm, vendor, designer, or the firm role's label).
+   - Fields are matched across different agreements by label keyword categories (company / contact name / email / phone / address / title) with plain rules, not AI; for the same agreement, the exact keys are reused.
+   - The picker is optional: if it's ignored, the form behaves exactly as today.
+   - Tests: matching across two agreements, firm-side fields left untouched, job fields left empty, cross-org 404.
+   - Later, if there's time: a small Clients list to edit or delete entries.
+2. **Verify page** (about 1 h). This was D7's cut verify page.
+   - A public `/verify` page. The browser computes the PDF's SHA-256 with Web Crypto, so the PDF never leaves the device. It calls `GET /api/verify/{sha256}`, an unscoped lookup by `files.final_sha256`; add an index.
+   - On a match, show the agreement, the file title, the firm, the completion date and the signers' names. Anyone holding that exact PDF already sees all of that.
+   - Otherwise: "Not a match: this copy was changed, or wasn't signed with Kickoff."
+   - Link to it from the file page and from new delivery emails. Already-signed PDFs never change.
+3. **The firm's logo and colour on emails and the signing page** (about 1.5 h). This was item 12, cut on Nov 15.
+   - Settings, then Branding: upload a PNG or JPG of 512 KB at most, checked by magic bytes and stored in GridFS, and choose a brand colour (a validated hex, with readable text contrast).
+   - Serve the logo publicly at a cache-busted URL.
+   - Emails get the logo at the top and the button in the brand colour. The signing page gets the logo in its header and its buttons in the colour.
+   - "Secured by Kickoff" stays.
+   - With no branding set, everything looks exactly as today.
+4. **Find very short blanks** (about 1.5 h). This is the known limitation: underscore runs under 15 pt wide, like `___` for initials, aren't candidates (`pdf_engine`, the `box.width >= 15` check and `_MIN_UNDERSCORES`).
+   - Lower the threshold carefully, e.g. accept 3+ underscores at 8 pt or more.
+   - Add an eval fixture with initials and option-mark blanks (`evals/make_fixtures.py`).
+   - Run the offline eval before and after (free).
+   - **Ask the owner before the online `evals.run` comparison (about 55¢)**, as CLAUDE.md requires for any detection change. No false positives may be added on the existing fixtures.
+   - Re-run the AIGA blind test only if the owner approves the credit.
+
+**How the Nov 17 checks were done** (none of this is committed):
+- Browser runs used Playwright on the installed Google Chrome: `uv run --project backend --with playwright python -I <script>` with `chromium.launch(channel="chrome")`. The phone was the `iPhone 13` device descriptor with `default_browser_type` removed.
+- Local runs used a throwaway database (`MONGODB_DB=agreements_<name>`) with `ANTHROPIC_API_KEY=` (heuristics only, so free), `EMAIL_BACKEND=console` (links read from the server log), `RUN_WORKER=true`, on port 8010.
+- Live checks used a test account (`e2e+…@example.com`); its password is not in the repo. A fresh session can sign up a new one and approve `evals/fixtures/two_party_services.pdf` (one Claude analysis, about 5¢), then run `scripts.live_check` against it.
 
 **Done on Nov 17 (details below):**
 - The first blind-test round, with two blocker fixes.
