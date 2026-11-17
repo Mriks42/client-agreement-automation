@@ -35,7 +35,8 @@ Claude is used in one place, once per agreement. When the firm uploads it, Claud
 3. Check the coloured boxes, then press **Approve**.
 4. Go to **Files**, then **New file**. Enter the signers (Gmail plus-addresses such as `you+client@gmail.com` bring every email to one inbox) and the client's details. Then **Preview the agreement**, then **Confirm and send**.
 5. Sign as the client from the email, ideally on a phone. Then countersign as the firm: press **Sign now** on the file page (when the firm's signer is you), or use the firm's email. The first email can land in Spam. **Copy signing link** on the file page always works too.
-6. The file page then offers **Download signed agreement**.
+6. The file page then offers **Download signed agreement**. Anyone can check that copy at **/verify**.
+7. Optional: in **Settings**, add your logo and colour, then send another file and see them on the email and the signing page. On that next **New file**, the **Client** box fills in the client you just sent to.
 
 ## Features I included, and why
 

@@ -4,36 +4,13 @@ Context for anyone working in this repo, human or AI. `DECISIONS.md` explains *w
 
 ## Current status (update at the end of every work session)
 
-_Last updated: Tue Nov 17, 2026, about 06:20 MST. Everything built so far is verified on the live app, documented and pushed. The owner moved the feature freeze to 21:30 (see Hard stops), and four more features are planned for the next session._
+_Last updated: Tue Nov 17, 2026, about 16:10 MST. Everything built so far is verified on the live app, documented and pushed, and CI is green. The four features planned for the afternoon are done (below). The feature freeze is 21:30 (see Hard stops)._
 
-**Next session: build these four, in this order, approved by the owner on Nov 17.** Finish, deploy and verify each one live before starting the next. Stop adding features at 21:30 MST and drop whatever isn't solid by then; recording a cut in DECISIONS.md beats shipping something half-working. Anthony's path (sign up, upload, approve, new file, send, sign, signed PDF) must keep working after every deploy, so run `scripts.live_check` after each one.
-
-1. **Saved clients** (an address book, about 2 h). **Built Nov 17 (`services/clients.py`, `api/clients.py`, the Client picker in `NewFilePage.tsx`, 4 tests in `test_clients.py`).** Design agreed with the owner:
-   - A tenant collection `clients` holds company, contact name, contact email, address, phone and title.
-   - It's saved and updated automatically when a file is **sent**: from the client-kind signer's name and email, plus the values of the *client-side identity* fields.
-   - On **New file**, a "Client" search box at the top. Picking a client fills the client signer's name and email, and the client-side identity fields.
-   - **Never fill job-specific fields** (dates, fees, descriptions, deliverables), and **never fill firm-side fields** (labels mentioning consultant, provider, firm, vendor, designer, or the firm role's label).
-   - Fields are matched across different agreements by label keyword categories (company / contact name / email / phone / address / title) with plain rules, not AI; for the same agreement, the exact keys are reused.
-   - The picker is optional: if it's ignored, the form behaves exactly as today.
-   - Tests: matching across two agreements, firm-side fields left untouched, job fields left empty, cross-org 404.
-   - Later, if there's time: a small Clients list to edit or delete entries. **Built Nov 17: `/clients` (`ClientsPage.tsx`), `PATCH /api/clients/{id}`; editing drops the per-agreement exact values.**
-2. **Verify page** (about 1 h). This was D7's cut verify page. **Built Nov 17 (`api/verify.py`, `repo.find_file_by_final_sha256` (the fourth unscoped lookup), `VerifyPage.tsx`, `test_verify.py`).**
-   - A public `/verify` page. The browser computes the PDF's SHA-256 with Web Crypto, so the PDF never leaves the device. It calls `GET /api/verify/{sha256}`, an unscoped lookup by `files.final_sha256`; add an index.
-   - On a match, show the agreement, the file title, the firm, the completion date and the signers' names. Anyone holding that exact PDF already sees all of that.
-   - Otherwise: "Not a match: this copy was changed, or wasn't signed with Kickoff."
-   - Link to it from the file page and from new delivery emails. Already-signed PDFs never change.
-3. **The firm's logo and colour on emails and the signing page** (about 1.5 h). This was item 12, cut on Nov 15. **Built Nov 17 (`services/branding.py`, `api/branding.py`, Settings Branding card, `Frame` in `SignPage.tsx`, `test_branding.py`).**
-   - Settings, then Branding: upload a PNG or JPG of 512 KB at most, checked by magic bytes and stored in GridFS, and choose a brand colour (a validated hex, with readable text contrast).
-   - Serve the logo publicly at a cache-busted URL.
-   - Emails get the logo at the top and the button in the brand colour. The signing page gets the logo in its header and its buttons in the colour.
-   - "Secured by Kickoff" stays.
-   - With no branding set, everything looks exactly as today.
-4. **Find very short blanks** (about 1.5 h). **Built Nov 17 (`_MIN_UNDERSCORE_WIDTH` = 8 pt in `pdf_engine`, the `short_blanks` eval fixture, a test in `test_pdf_engine.py`). Online eval approved by the owner: 82/82, 0 false positives, about 48¢ (the report in `evals/out/` is git-ignored). AIGA re-run live (approved): all 21 short blanks found and labelled in 48 s.** This is the known limitation: underscore runs under 15 pt wide, like `___` for initials, aren't candidates (`pdf_engine`, the `box.width >= 15` check and `_MIN_UNDERSCORES`).
-   - Lower the threshold carefully, e.g. accept 3+ underscores at 8 pt or more.
-   - Add an eval fixture with initials and option-mark blanks (`evals/make_fixtures.py`).
-   - Run the offline eval before and after (free).
-   - **Ask the owner before the online `evals.run` comparison (about 55¢)**, as CLAUDE.md requires for any detection change. No false positives may be added on the existing fixtures.
-   - Re-run the AIGA blind test only if the owner approves the credit.
+**Nov 17 afternoon: four features, each deployed, checked live in Chrome (desktop and an iPhone 13 viewport) and followed by a passing `scripts.live_check`.** The test account for these checks was `e2e+clients1794955380@example.com`; its password isn't in the repo. It has branding set (a fake "Acme Test Co" logo and #7c2d12), two saved clients, and the AIGA agreement analysed (not approved).
+1. **Saved clients** (`services/clients.py`, `api/clients.py`, the Client picker in `NewFilePage.tsx`, `/clients` in `ClientsPage.tsx`, 5 tests in `test_clients.py`). A tenant collection `clients`, one per client email (unique index), saved by `clients.remember` after a send's atomic update (a failure there is logged and never affects the send). `identity_inputs` decides which new-file inputs are client identity details by label keywords: job words (dates, fees, descriptions, ...), firm words (consultant, provider, firm, vendor, designer, contractor, supplier) and other signers' role names are never filled. Fill reuses exact keys for the agreement a client was last sent, else matches by category. The picker is hidden until a file has been sent. Editing a client drops the per-agreement exact values. `Tenant.upsert` was added for it.
+2. **Verify page** (`api/verify.py`, `repo.find_file_by_final_sha256` (the fourth unscoped lookup, with a partial index on `final_sha256`), `VerifyPage.tsx`, `test_verify.py`). Public `/verify`; the browser hashes the PDF with Web Crypto and calls `GET /api/verify/{sha256}`. A match shows the agreement, file, firm, completion date and signers' names (never emails). Linked from the file page and from new delivery emails (`signing.verify_url`).
+3. **Logo and colour** (`services/branding.py`, `api/branding.py`, the Branding card in Settings, `Frame` in `SignPage.tsx`, `test_branding.py`). Logo: PNG or JPG by magic bytes, at most 512 KB, in GridFS, public at `/api/branding/{org}/logo/{blob}` (cached for a year; a new logo gets a new URL). Colour: validated hex; `ink` is white, else near-black, else black, whichever first reaches 4.5:1; `text` is the colour for links on white, or near-black if too light. Signing emails and each signer's signed copy get the logo and button colour; the signing page gets the logo and `--color-brand*` variables. Without branding, emails are byte-for-byte unchanged (tested).
+4. **Very short blanks** (`_MIN_UNDERSCORE_WIDTH` = 8 pt in `pdf_engine`; dot runs keep 15 pt; the `short_blanks` eval fixture; a test in `test_pdf_engine.py`). Offline eval unchanged on the existing fixtures with 0 false positives; the free sweep of the blind PDFs found 21 new blanks, all real, all in AIGA. With the owner's approval: the online eval scored 82/82 with 0 false positives (about 48¢), and the AIGA agreement re-run live found all 21 short blanks, labelled sensibly, in 48 s.
 
 **How the Nov 17 checks were done** (none of this is committed):
 - Browser runs used Playwright on the installed Google Chrome: `uv run --project backend --with playwright python -I <script>` with `chromium.launch(channel="chrome")`. The phone was the `iPhone 13` device descriptor with `default_browser_type` removed.
@@ -47,11 +24,13 @@ _Last updated: Tue Nov 17, 2026, about 06:20 MST. Everything built so far is ver
 - A second blind-test round on software-subscription agreements, shaped like MIND's (Astra AI's product).
 - The MCP server.
 - Team members.
+- Sign now.
 - SUBMISSION.md, the text for the submission form.
+- In the afternoon: saved clients, the verify page, logo and colour, and very short blanks (above).
 
 **Left for the owner:**
 1. **Turn off auto-deploy in Render after the final verified deploy (22:30)**, so a docs-only commit can't redeploy at the last minute.
-2. **Check the Anthropic balance** in the console; keep at least $2 for grading. Nov 17 used 10 Claude analyses: 7 in the first round and the CPAi rerun, plus 3 in the second round.
+2. **Check the Anthropic balance** in the console; keep at least $2 for grading. Nov 17 used 10 Claude analyses in the morning (7 in the first round and the CPAi rerun, plus 3 in the second round), and in the afternoon 3 analyses (two fixtures, about 5¢ each, and AIGA) plus the online eval (about 48¢), so roughly 85¢ more.
 3. **Tools used:** if any assistant besides Claude Code was used (Gemini, ChatGPT, ...), add it to SUBMISSION.md and DECISIONS.md.
 4. **Submit:** paste SUBMISSION.md into the form, with https://kickoff-r713.onrender.com and https://github.com/Mriks42/client-agreement-automation.
 - **Hard stops (moved again by the owner on Nov 17):** new features until 21:30 MST (each deployed and checked live as it lands); no pushes from 19:00 to 20:00 (Render maintenance: dashboard, API and deploys are unavailable for up to 30 min, but running services aren't affected, per status.render.com); final deploy verified with `scripts.live_check` by 22:30; documentation only after that; last commit by 23:00 MST. The official deadline is Nov 18 00:00 MST, and Anthony grades whatever is live then.
@@ -91,7 +70,7 @@ _Last updated: Tue Nov 17, 2026, about 06:20 MST. Everything built so far is ver
 - **Not fixed** (DECISIONS.md, Known limitations): a value in a mid-sentence placeholder still shrinks; two-underscore blanks aren't found (3+ underscores are, from 8 pt, since Nov 17); optional signers belong to the template; dropdown options aren't offered; a scan's hint text stays under values; role names can echo placeholders ("[Client Name]").
 - Tests: 127 backend tests pass (7 new), plus ruff and mypy. The offline eval is unchanged at 71/72 without the Docker-only Word fixture.
 
-**Cuts applied (Nov 15):** the "if time allows" items, the verify page, logo and colour branding, bounce detection, and the template-versioning UI. Don't build them. The API and webhooks stay in scope, scheduled last. See DECISIONS.md "If behind schedule".
+**Cuts applied (Nov 15):** the "if time allows" items, the verify page, logo and colour branding, bounce detection, and the template-versioning UI. The API and webhooks stayed in scope. Since then, team invites, Sign now, the verify page and logo and colour branding were built on Nov 17 with the owner's approval. Bounce detection, bulk CSV and the template-versioning UI stay cut. See DECISIONS.md "If behind schedule".
 
 **Remaining schedule:**
 - **Tue, before the 14:00 feature freeze:** blind tests on software-subscription agreements shaped like MIND's (m-i-n-d.ai, Astra AI's product), then a Kickoff MCP server over /api/v1, the submission description, and team members if there's time.
