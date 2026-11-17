@@ -24,6 +24,10 @@ Kickoff then emails each signer in order, chases them (day 2 and day 5), and col
 - When a business customer signs up, open a file from the dashboard. Or MIND's backend opens it through the API, or an assistant does through MCP ("send our agreement to Jane at Acme").
 - A person checks and sends it, the customer signs on their phone, Astra countersigns, and the `file.completed` webhook can switch on the customer's account.
 
+## Where AI is used, and why not an agent
+
+Claude is used in one place, once per agreement. When the firm uploads it, Claude labels each blank (what it is and who fills it) and the signers and their order, and a person checks and approves the result. Everything after that (sending, the signing order, reminders, the signed PDF and its certificate) is plain, predictable software, because a legal signing process must behave the same way every time and leave a record of exactly what happened. Agents can still drive Kickoff from outside, through the MCP server, but they can only prepare drafts. A person sends.
+
 ## Try it (about 5 minutes)
 
 1. Open the submission URL and create a company account (use any company name).

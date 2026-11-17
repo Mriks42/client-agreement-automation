@@ -294,6 +294,7 @@ The API and webhooks stayed in scope and were built on Tuesday morning, Nov 17, 
 - **The single process** runs both the API and the worker. Jobs are claimed atomically, so scaling out horizontally is safe once a second instance exists.
 - **Fonts in the PDF** are the built-in Helvetica and Times, which only cover Latin-1. Curly quotes, dashes and letters such as "Ł" are written in their plain forms (O'Brien, Lukasz), and other scripts (Chinese, Arabic, Cyrillic) appear as "?". For production, embed a Unicode font such as Noto Sans and measure text with it on the signing page too.
 - **The certificate can't contain its own hash.** The signed PDF's SHA-256 is stored with the file, shown on the file page and printed in every delivery email, and the certificate says where to find it. A PAdES signature (D7) would make the PDF self-verifying.
+- **The next step for detection is a self-checking setup agent.** After Claude labels the blanks, an agent would fill a test copy of the agreement with sample values, look at the rendered pages, and fix the problems it sees: values printed too small, short blanks it missed, a signer with no signature box. Then it would hand the result to the person to approve, as now. It isn't built yet, for three reasons: it would change the step the graded test depends on, it would cost 2–4 times as much per agreement, and it needs paid eval runs first to show that it helps more than it hurts.
 
 Found in the blind tests (Nov 17); none stops an agreement from being signed:
 
