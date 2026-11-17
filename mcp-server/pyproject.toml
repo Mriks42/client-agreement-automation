@@ -1,0 +1,30 @@
+[project]
+name = "kickoff-mcp"
+version = "0.1.0"
+description = "MCP server for Kickoff: AI assistants can prepare client agreements and track their signatures"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = ["mcp>=1.2,<2", "httpx>=0.27"]
+
+[project.scripts]
+kickoff-mcp = "kickoff_mcp.server:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["kickoff_mcp"]
+
+[dependency-groups]
+dev = ["pytest>=8", "pytest-asyncio>=0.24", "ruff>=0.6", "mypy>=1.11"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+
+[tool.ruff]
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
