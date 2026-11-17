@@ -293,6 +293,35 @@ def test_stamp_replaces_placeholder_text_and_flattens_values() -> None:
         assert len(doc[0].get_drawings()) >= 3  # the signature line survives, plus the tick
 
 
+@pytest.mark.parametrize("font", ["tiro", "helv"])
+@pytest.mark.parametrize("leading", [1.1, 1.15, 1.3])
+def test_removing_placeholders_keeps_the_words_on_the_lines_around_them(
+    font: str, leading: float
+) -> None:
+    # Blind test, CPAi engagement letter: in tightly set text, extraction boxes span the font's
+    # whole height and overlap the next line's, and removing "[CPA Firm]" took "professional"
+    # (the word under it) out of the signed agreement.
+    lines = [
+        "The original filing due dates for your returns are listed in the schedule.",
+        "[CPA Firm] is pleased to provide [Client Name] with the following",
+        "professional services described below. This letter, and the attached",
+        "terms and conditions, confirm our understanding of the engagement.",
+    ]
+
+    def draw(page: pymupdf.Page) -> None:
+        for i, text in enumerate(lines):
+            page.insert_text((72, 100 + i * 12 * leading), text, fontsize=12, fontname=font)
+
+    data = make_pdf(draw)
+    holders = [s for s in slots_of(data) if s.kind == "placeholder"]
+    assert [s.text for s in holders] == ["[CPA Firm]", "[Client Name]"]
+    out = pe.stamp(data, [pe.Stamp(1, s.bbox, "text", "Z", redact=s.redact) for s in holders])
+    with pymupdf.open(stream=out, filetype="pdf") as doc:
+        words = [w[4] for w in doc[0].get_text("words") if w[4] != "Z"]
+    kept = " ".join(lines).replace("[CPA Firm]", "").replace("[Client Name]", "").split()
+    assert sorted(words) == sorted(kept)
+
+
 def test_party_detail_labels_with_empty_space_are_blanks() -> None:
     def draw(page: pymupdf.Page) -> None:
         page.insert_text((72, 100), "Company:")

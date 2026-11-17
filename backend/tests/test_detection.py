@@ -307,6 +307,58 @@ def test_instruction_next_to_a_blank_is_removed_with_its_value() -> None:
     assert field.redact[0].x0 == pytest.approx(note.bbox.x0)
 
 
+def test_bracket_x_labelled_as_a_value_is_removed_but_a_box_to_tick_is_kept() -> None:
+    import pymupdf
+
+    from app.services.detection import mapper
+
+    # Blind test, CPAi engagement letter: "$[X]" reads as a ticked option box, and the fee was
+    # written over the printed "[X]" because option boxes had nothing to remove.
+    doc = pymupdf.open()
+    page = doc.new_page()
+    page.insert_text((72, 100), "Our fee is estimated to be $[X], of which [X]% is due now.")
+    page.insert_text((72, 140), "[ ] Include bookkeeping services")
+    data = doc.tobytes()
+    ex = pdf_engine.extract(data)
+    fee, pct, box = sorted(
+        (s for s in ex.slots if s.kind == "checkbox"), key=lambda s: (s.bbox.y0, s.bbox.x0)
+    )
+
+    def lab(slot_id: str, kind: str, key: str) -> SlotLabel:
+        return SlotLabel(
+            slot_id=slot_id, type=kind, filled_by="sender", key=key, label=key, required=True
+        )
+
+    labels = Labels(
+        parties=[Party(key="client", name="Client", kind="client", signs_here=True)],
+        signing_order=["client"],
+        slots=[
+            lab(fee.id, "text", "fee"),
+            lab(pct.id, "text", "retainer_percent"),
+            lab(box.id, "checkbox", "bookkeeping"),
+        ],
+        warnings=[],
+    )
+    fields = {f.key: f for f in mapper.build(ex, labels, source="ai").fields}
+    assert fields["fee"].redact and fields["retainer_percent"].redact
+    assert fields["bookkeeping"].redact == []
+
+    def box_of(r: Any) -> pdf_engine.Box:
+        return pdf_engine.Box(r.x0, r.y0, r.x1, r.y1)
+
+    stamps = [
+        pdf_engine.Stamp(
+            1, box_of(fields[k].rect), "text", v, redact=[box_of(r) for r in fields[k].redact]
+        )
+        for k, v in (("fee", "5,000"), ("retainer_percent", "10"))
+    ]
+    stamps.append(pdf_engine.Stamp(1, box_of(fields["bookkeeping"].rect), "check"))
+    with pymupdf.open(stream=pdf_engine.stamp(data, stamps), filetype="pdf") as out:
+        text = out[0].get_text()
+    assert "[X]" not in text and "5,000" in text and "10" in text
+    assert "[ ] Include bookkeeping services" in text  # ticked, its brackets left alone
+
+
 def test_instruction_wrapped_onto_the_next_line_is_removed_too() -> None:
     import pymupdf
 

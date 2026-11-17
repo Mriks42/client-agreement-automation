@@ -82,7 +82,9 @@ class Slot:
     caption: str = ""  # text right below a blank that has no label on its own line
     text: str = ""  # placeholder text, or a form field's name
     detail: str = ""  # e.g. a form field's type
-    redact: list[Box] = field(default_factory=list)  # text to remove before writing a value
+    # Text to remove before writing a value. A bracket option box ("[X]") has it too, used only
+    # if the box turns out to be a value ("$[X]" for a fee) rather than a box to tick.
+    redact: list[Box] = field(default_factory=list)
 
     @property
     def anchor(self) -> str:
@@ -395,12 +397,12 @@ def _placeholders(lines: list[_RawLine]) -> list[_Draft]:
                 _NOT_PLACEHOLDER_RE.match(inner) or not re.search(r"[A-Za-z●•_#]", inner)
             ):
                 continue
-            parts: dict[int, tuple[_RawLine, list[Box]]] = {}
+            parts: dict[int, tuple[_RawLine, list[_Char]]] = {}
             for ln, ch in stream[m.start() : m.end()]:
                 if ln is None or ch is None or ch.c.isspace():
                     continue
-                parts.setdefault(id(ln), (ln, []))[1].append(ch.box)
-            rects = [_union_all(boxes) for _, boxes in parts.values()]
+                parts.setdefault(id(ln), (ln, []))[1].append(ch)
+            rects = [_union_all([ch.box for ch in chars]) for _, chars in parts.values()]
             first_line = next(iter(parts.values()))[0]
             drafts.append(
                 _Draft(
@@ -409,10 +411,24 @@ def _placeholders(lines: list[_RawLine]) -> list[_Draft]:
                     baseline=first_line.baseline,
                     line=first_line,
                     text=inner,
-                    redact=rects if kind == "placeholder" else [],
+                    redact=[_ink_band(c) for _, c in parts.values()],
                 )
             )
     return drafts
+
+
+def _ink_band(chars: list[_Char]) -> Box:
+    """The strip to clear to remove a placeholder's text before its value is written.
+
+    Extraction boxes span the font's whole ascender-to-descender height (1.3x the font size for
+    Times), so in text set at ordinary line spacing they overlap the lines above and below, and
+    redaction removes every glyph whose box it touches: words around a placeholder vanished
+    from the signed agreement. A band from the baseline up to about x-height still crosses every
+    glyph of the placeholder and none of its neighbours'. It is never larger than the box."""
+    box = _union_all([ch.box for ch in chars])
+    top = max(box.y0, min(ch.baseline - 0.55 * ch.size for ch in chars))
+    bottom = min(box.y1, max(ch.baseline for ch in chars))
+    return Box(box.x0, top, box.x1, max(bottom, top + 0.5))
 
 
 def _placeholder_box(rects: list[Box]) -> Box:

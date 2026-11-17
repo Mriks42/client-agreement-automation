@@ -121,9 +121,10 @@ def _field_type(lab: SlotLabel) -> tuple[FieldType, str]:
 
 def _rect(slot: Slot, ftype: FieldType, page: PageText) -> tuple[Rect, list[Rect]]:
     b = slot.bbox
-    if slot.kind in ("form_field", "checkbox"):
+    if slot.kind == "form_field" or (slot.kind == "checkbox" and ftype == "checkbox"):
         return _clip(_to_rect(b), page), []
-    if slot.kind == "placeholder":
+    # "[X]" also reads as a ticked box; labelled as a value ("$[X]" for a fee), it is a placeholder.
+    if slot.kind in ("placeholder", "checkbox"):
         rect = _to_rect(b)
         if ftype in _SIGN_HEIGHT:
             rect = Rect(x0=b.x0, y0=b.y1 - _SIGN_HEIGHT[ftype], x1=max(b.x1, b.x0 + 60), y1=b.y1)
