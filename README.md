@@ -5,6 +5,7 @@ A firm uploads its standard client agreement once. AI finds where every blank an
 - **Live app:** https://kickoff-r713.onrender.com
 - **Why it's built this way:** [DECISIONS.md](DECISIONS.md)
 - **Working on the code:** [CLAUDE.md](CLAUDE.md)
+- **Submission summary** (what's included, what's left out, and why): [SUBMISSION.md](SUBMISSION.md)
 
 ## What it does
 

@@ -317,7 +317,8 @@ Found in the blind tests (Nov 17); none stops an agreement from being signed:
 - **Claude API** (`claude-opus-5-5`) inside the product, for agreement field detection.
 - **Services:** Render (hosting), MongoDB Atlas (database), Gmail API (email), Sentry (error tracking), UptimeRobot (uptime and keep-awake), GitHub.
 - **Key libraries:** FastAPI, Pydantic, PyMongo, PyMuPDF, LibreOffice (DOCX conversion), React, Vite, Tailwind, TanStack Query, signature_pad.
-- *Add any other assistants or tools used before submitting.*
+- **Playwright**, driving Chrome for the end-to-end checks and blind tests (testing only, not part of the product).
+- **The official MCP Python SDK** for the Kickoff MCP server (item 16).
 
 ## Change log
 
