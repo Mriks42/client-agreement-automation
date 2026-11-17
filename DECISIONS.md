@@ -37,7 +37,7 @@ The brief says to make a reasonable decision when something is unclear and to wr
 - **Options:**
   - (a) the DocuSign, Dropbox Sign, or BoldSign API
   - (b) self-host an open-source signer (DocuSeal, Documenso)
-  - (c) native signing behind a `SignatureProvider` interface
+  - (c) native signing
 - **Decision:** (c).
 - **Why:**
   - The client's product is *getting the agreement signed on every file*. Capturing a signature is the easy, commodity part.
@@ -45,7 +45,7 @@ The brief says to make a reasonable decision when something is unclear and to wr
   - Per-envelope or per-seat provider fees come straight out of the margin when the client resells.
   - Providers still need to be told where the fields go, so the hard part (detection) has to be built either way.
   - Self-hosting means running and patching a second heavy service on a 512 MB instance, and it reduces my own work to glue.
-  - Astra already runs its own e-signature tool (MIND Sign), so building in-house is clearly acceptable to them. The interface is where a MIND Sign or DocuSign adapter would go.
+  - Astra already runs its own e-signature tool (MIND Sign), so building in-house is clearly acceptable to them. A MIND Sign or DocuSign adapter would go in `services/signing.py`, which owns the signing steps. *(I planned a separate `SignatureProvider` interface for it; it wasn't needed for native signing, so it wasn't extracted.)*
 - **Revisit when:** a buyer requires a specific provider, or needs a qualified signature (see D7).
 
 ### D2: How the product handles an agreement it has never seen
@@ -237,7 +237,7 @@ The brief says to make a reasonable decision when something is unclear and to wr
 
 9. **Automatic reminders** (day 2 and day 5 by default), **expiry** (30 days), **void**, and **resend to a corrected email**. Chasing signatures is the manual work the client is complaining about.
 10. **Public REST API with API keys and idempotency keys**, and **signed outbound webhooks** with retries and a delivery log. This is how "every file" becomes truly automatic: the firm's own systems open files and hear back when they're signed (D4). *(Built Nov 17, in a lean form: API keys in Settings; `GET /api/v1/templates`, `POST /api/v1/files` with `Idempotency-Key` and `metadata`, `GET /api/v1/files/{id}` and its signed PDF; and one webhook endpoint per firm, with HMAC-signed events, retries, a delivery log with Retry, and a test event. Auto-send is cut (D5).)*
-11. **Monitoring.** Error tracking (Sentry), a health endpoint, structured logs, a failed-jobs page with retry, and bounce detection. You can't run what you can't see. *(Bounce detection is cut; see the Nov 15 cuts below.)*
+11. **Monitoring.** Error tracking (Sentry), a health endpoint, structured logs, a failed-jobs page with retry, and bounce detection. You can't run what you can't see. *(Bounce detection is cut; see the Nov 15 cuts below. The single failed-jobs page wasn't built either. Each failure shows where it happened, with its own way out: Try again on an analysis or a signed PDF, Resend or Copy link for an email, Retry for a webhook. The health check counts dead jobs, and UptimeRobot alerts on it.)*
 12. **Per-company branding:** logo, colour, and sender name. Clients should see the firm's name, not mine, and the client wants to resell this. *(Logo and colour are cut. Emails and the signing page still show the firm's name, taken from signup.)*
 13. **Verify page.** Anyone can check that a PDF is the unaltered signed original (D7). *(Cut.)*
 14. **Template versioning.** Each file stays pinned to the exact version it was sent with, so editing the agreement never changes what someone already signed. *(The pinning stays. Only the UI for browsing old versions is cut.)*
@@ -247,9 +247,9 @@ The brief says to make a reasonable decision when something is unclear and to wr
     - no signature block, and a scan;
     - drawn signature lines with captions, and label-only blocks with dot leaders;
     - a fillable PDF form.
-16. **An MCP server for AI assistants** *(added Nov 17)*. Claude Desktop, Claude Code or any MCP client can list agreements, prepare a file as a draft, see which files are waiting and on whom, and save a signed PDF. MCP is how AI assistants use outside tools, and Astra's own product (MIND) is built around it. So the firm's assistant can start the agreement on a new client without anyone opening Kickoff, apart from the one step that must stay human: checking the draft and sending it (D5). It sits on the public API (item 10) and adds nothing to the live app. It's a separate package (`mcp-server/`) depending on the official `mcp` Python SDK, so that dependency never enters the backend image.
 
     It turns "works on agreements it has never seen" from a hope into a measured number. CI runs it offline on every push, inside the production image so the DOCX fixture is included.
+16. **An MCP server for AI assistants** *(added Nov 17)*. Claude Desktop, Claude Code or any MCP client can list agreements, prepare a file as a draft, see which files are waiting and on whom, and save a signed PDF. MCP is how AI assistants use outside tools, and Astra's own product (MIND) is built around it. So the firm's assistant can start the agreement on a new client without anyone opening Kickoff, apart from the one step that must stay human: checking the draft and sending it (D5). It sits on the public API (item 10) and adds nothing to the live app. It's a separate package (`mcp-server/`) depending on the official `mcp` Python SDK, so that dependency never enters the backend image.
 
 **If time allows:** team invites, bulk file creation from CSV, in-app countersigning for the logged-in user, and automated browser end-to-end tests. *(All cut on Nov 15; see "If behind schedule" below.)*
 
@@ -257,7 +257,7 @@ The brief says to make a reasonable decision when something is unclear and to wr
 
 | Left out | Why |
 |---|---|
-| Third-party e-signature providers | See D1. The `SignatureProvider` interface is the hook for later. |
+| Third-party e-signature providers | See D1. An adapter would go in `services/signing.py`. |
 | Billing and subscriptions (Stripe) | Astra is customer #1 and pricing isn't decided. Stripe Checkout is about a day of work once it is. |
 | SSO/SAML and fine-grained roles | Enterprise features with no buyer yet. Every member of a company is an admin. |
 | Native CRM or practice-management connectors | The API and webhooks cover them generically, and Zapier or Make can call them today. |

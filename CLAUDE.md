@@ -175,7 +175,7 @@ A multi-tenant web app that gets a firm's standard client agreement signed on ev
 | Email | Gmail REST API over HTTPS from a dedicated account, behind the `EmailSender` protocol. Use the `console` backend in dev and tests. |
 | Frontend | React + TypeScript + Vite + Tailwind, TanStack Query, React Router, `signature_pad` |
 | Hosting | One Docker web service on Render (free tier) that serves the API under `/api` and the built SPA at `/` |
-| Monitoring | Sentry, `/healthz`, structured JSON logs, failed-jobs page |
+| Monitoring | Sentry, `/healthz`, structured JSON logs, the dead-job count in `/api/health`; each failure shows on its own page with a retry |
 | Package managers | `uv` (backend), `npm` (frontend) |
 
 ## Repo layout
