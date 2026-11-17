@@ -359,6 +359,33 @@ async def copy_link(
     return signing.sign_url(settings, token)
 
 
+async def sign_now(
+    tenant: Tenant, settings: Settings, user: CurrentUser, file_id: str, recipient_id: str
+) -> str:
+    """The firm's own signer, logged in, opens their signing page from the file instead of from
+    their email. Only for the person named as that signer (their email is the login's), so the
+    record of who signed stays true. Everything after this is the usual signing page."""
+    file = await get(tenant, file_id)
+    i, r = _current(file, recipient_id)
+    if normalize_email(r["email"]) != normalize_email(user.email):
+        raise Conflict(f"Only {r['name']} can sign here. They can use the link in their email.")
+    token, token_hash = signing.new_token()
+    updated = await tenant.transition(
+        "files", file["_id"], signing.is_current(r), {"$push": signing.push_token(i, token_hash)}
+    )
+    if updated is None:
+        raise Conflict("This file changed. Reload it.")
+    await events.record(
+        tenant,
+        file["_id"],
+        "signing_opened_in_app",
+        actor=events.by_user(user),
+        recipient=r,
+        data={"login": user.email},
+    )
+    return signing.sign_url(settings, token)
+
+
 async def update_recipient(
     tenant: Tenant,
     user: CurrentUser,
@@ -485,7 +512,9 @@ async def void(tenant: Tenant, user: CurrentUser, file_id: str, reason: str) -> 
 def _waiting_for(file: dict[str, Any]) -> dict[str, Any] | None:
     r = next((r for r in file["recipients"] if r["status"] == "active"), None)
     return (
-        {"name": r["name"], "role_label": r["role_label"]} if r and file["status"] in LIVE else None
+        {"name": r["name"], "role_label": r["role_label"], "email": r["email"]}
+        if r and file["status"] in LIVE
+        else None
     )
 
 

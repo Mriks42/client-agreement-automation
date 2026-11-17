@@ -148,6 +148,19 @@ async def copy_link(
     return {"url": url}
 
 
+@router.post("/{file_id}/recipients/{recipient_id}/sign-now")
+async def sign_now(
+    file_id: str, recipient_id: str, request: Request, user: UserDep, tenant: TenantDep
+) -> dict[str, str]:
+    """For the logged-in person who is this file's current signer: their signing page, without
+    going through their email."""
+    try:
+        url = await svc.sign_now(tenant, request.app.state.settings, user, file_id, recipient_id)
+    except (NotFound, Conflict) as exc:
+        raise _errors(exc) from exc
+    return {"url": url}
+
+
 @router.patch("/{file_id}/recipients/{recipient_id}")
 async def edit_recipient(
     file_id: str, recipient_id: str, body: RecipientEdit, user: UserDep, tenant: TenantDep

@@ -217,6 +217,8 @@ def _describe(e: dict[str, Any]) -> str:
             return "Everyone had signed"
         case "link_copied":
             return f"{by} copied the signing link for {who}, to share it directly"
+        case "signing_opened_in_app":
+            return f"{who} opened their signing page from the file, logged in as {d.get('login')}"
         case "email_corrected":
             return f"{by} changed {who}'s email from {d.get('from')} to {d.get('to')}"
         case "name_corrected":
@@ -281,6 +283,11 @@ def certificate(
         for e in evts
         if e["type"] == "link_copied" and e.get("recipient")
     }
+    in_app = {
+        (e.get("recipient") or {}).get("id")
+        for e in evts
+        if e["type"] == "signing_opened_in_app" and e.get("recipient")
+    }
     consent_version = {
         (e.get("recipient") or {}).get("id"): (e.get("data") or {}).get("disclosure_version")
         for e in evts
@@ -292,6 +299,8 @@ def certificate(
         link = f"A personal link emailed to {r['email']}"
         if r["id"] in copied:
             link += f". {file['created_by_name']} also copied a link to share with them directly"
+        if r["id"] in in_app:
+            link += ". They also opened it from the file while logged in to their own account"
         version = consent_version.get(r["id"]) or signing.ESIGN_DISCLOSURE_VERSION
         rows = [
             CertRow("Email", r["email"]),
