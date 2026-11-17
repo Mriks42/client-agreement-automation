@@ -1,6 +1,7 @@
 import { Link, Navigate, NavLink, Outlet, useLocation, useNavigate } from 'react-router'
 import { useLogout, useMe } from '../api/hooks'
 import { PRODUCT_NAME } from '../lib/product'
+import { Wordmark } from './Logo'
 import { FullPageSpinner } from './ui'
 
 /** Signed-in layout. Sends visitors without a session to the login page. */
@@ -30,8 +31,8 @@ export function AppShell() {
     <div className="flex min-h-full flex-col">
       <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/95 backdrop-blur">
         <div className="mx-auto flex h-14 max-w-7xl items-center gap-4 px-4">
-          <Link to="/files" className="text-sm font-semibold uppercase tracking-wide text-brand">
-            {PRODUCT_NAME}
+          <Link to="/files" aria-label={`${PRODUCT_NAME} home`}>
+            <Wordmark size="sm" markOnlyOnPhone />
           </Link>
           <nav className="flex items-center gap-1">
             <NavLink to="/files" className={navCls}>

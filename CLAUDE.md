@@ -27,6 +27,7 @@ _Last updated: Tue Nov 17, 2026, about 16:10 MST. Everything built so far is ver
 - Sign now.
 - SUBMISSION.md, the text for the submission form.
 - In the afternoon: saved clients, the verify page, logo and colour, and very short blanks (above).
+- Then a landing-page polish and a Kickoff logo mark (`components/Logo.tsx`, `public/favicon.svg`, `HomePage.tsx`), at the owner's request.
 
 **Left for the owner:**
 1. **Turn off auto-deploy in Render after the final verified deploy (22:30)**, so a docs-only commit can't redeploy at the last minute.

@@ -2,6 +2,7 @@ import { useState, type DragEvent } from 'react'
 import { Link } from 'react-router'
 import { api } from '../api/client'
 import { Alert, Button, Card, Spinner } from '../components/ui'
+import { Wordmark } from '../components/Logo'
 import { formatDate } from '../lib/format'
 import { PRODUCT_NAME } from '../lib/product'
 
@@ -59,8 +60,8 @@ export function VerifyPage() {
     <div className="min-h-full bg-slate-50">
       <header className="border-b border-slate-200 bg-white">
         <div className="mx-auto flex max-w-2xl items-center px-4 py-3">
-          <Link to="/" className="text-sm font-bold tracking-wider text-brand">
-            {PRODUCT_NAME.toUpperCase()}
+          <Link to="/" aria-label={`${PRODUCT_NAME} home`}>
+            <Wordmark size="sm" />
           </Link>
         </div>
       </header>

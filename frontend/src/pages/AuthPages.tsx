@@ -2,6 +2,7 @@ import { useState, type FormEvent, type ReactNode } from 'react'
 import { Link, Navigate, useNavigate, useParams, useSearchParams } from 'react-router'
 import { useInvitePreview, useJoin, useLogin, useMe, useSignup } from '../api/hooks'
 import { Alert, Button, FullPageSpinner, TextInput } from '../components/ui'
+import { Wordmark } from '../components/Logo'
 import { PRODUCT_NAME } from '../lib/product'
 
 function safeNext(raw: string | null): string {
@@ -12,8 +13,8 @@ function safeNext(raw: string | null): string {
 function AuthCard({ title, children, footer }: { title: string; children: ReactNode; footer: ReactNode }) {
   return (
     <main className="mx-auto flex min-h-full max-w-sm flex-col justify-center px-4 py-12">
-      <Link to="/" className="text-sm font-semibold uppercase tracking-wide text-brand">
-        {PRODUCT_NAME}
+      <Link to="/" aria-label={`${PRODUCT_NAME} home`} className="self-start">
+        <Wordmark />
       </Link>
       <h1 className="mt-2 text-2xl font-semibold tracking-tight">{title}</h1>
       <div className="mt-6 rounded-xl border border-slate-200 bg-white p-5 shadow-xs">{children}</div>
