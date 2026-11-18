@@ -160,11 +160,15 @@ client-agreement-automation/
 ├── README.md               You are here: what it does and how to try it
 ├── DECISIONS.md            Why it's built this way: what's included, what's left out, and why
 ├── CLAUDE.md               How to work on the code
+├── SUBMISSION.md           The submission summary: what's included and left out
+├── PRIVACY.md, TERMS.md    Privacy notice and terms (also needed for the Gmail sending account)
+├── docs/screenshots/       The screenshots in this README
 ├── Dockerfile, render.yaml How it's packaged and deployed
 │
 ├── frontend/src/           THE WEBSITE
-│   ├── pages/              One file per screen: upload, review, files, new file,
-│   │                       file page, signing page, settings
+│   ├── pages/              One file per screen: landing, sign-up, upload, review, files,
+│   │                       new file, saved clients, file page, signing page, verify page,
+│   │                       settings
 │   └── components/         Shared pieces: the field editor, the signature pad
 │
 ├── mcp-server/            THE MCP ADD-ON: lets AI assistants prepare drafts and track signatures

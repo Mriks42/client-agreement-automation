@@ -28,7 +28,7 @@ _Last updated: Tue Nov 17, 2026, about 20:40 MST. Everything built so far is ver
 - SUBMISSION.md, the text for the submission form.
 - In the afternoon: saved clients, the verify page, logo and colour, and very short blanks (above).
 - Then a landing-page polish and a Kickoff logo mark (`components/Logo.tsx`, `public/favicon.svg`, `HomePage.tsx`), at the owner's request.
-- In the evening: a status summary and search on Files (`FilesPage.tsx`, frontend only), and "Your account" in Settings (`PATCH /api/auth/me`, `POST /api/auth/password`, `test_account.py`). Forgot password is the recorded next step.
+- In the evening: a status summary and search on Files (`FilesPage.tsx`, frontend only), and "Your account" in Settings (`PATCH /api/auth/me`, `POST /api/auth/password`, `test_account.py`). Forgot password is the recorded next step. The API reference at `/api/docs` now lists only `/api/v1`, titled "Kickoff API" (the website's own routers use `include_in_schema=False`).
 
 **Left for the owner:**
 1. **Turn off auto-deploy in Render after the final verified deploy (22:30)**, so a docs-only commit can't redeploy at the last minute.
