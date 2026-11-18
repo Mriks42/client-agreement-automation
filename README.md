@@ -91,7 +91,6 @@ Everything above is live. Before release I ran two blind-test rounds on nine pub
 
 - [SUBMISSION.md](SUBMISSION.md): what's included, what's left out, and why.
 - [DECISIONS.md](DECISIONS.md): every design decision, the blind-test results and the known limitations.
-- [CLAUDE.md](CLAUDE.md): how to work on the code.
 
 ## How it works
 
@@ -159,7 +158,6 @@ Yellow is the AI step, blue is where a person confirms, and green is the result.
 client-agreement-automation/
 ├── README.md               You are here: what it does and how to try it
 ├── DECISIONS.md            Why it's built this way: what's included, what's left out, and why
-├── CLAUDE.md               How to work on the code
 ├── SUBMISSION.md           The submission summary: what's included and left out
 ├── PRIVACY.md, TERMS.md    Privacy notice and terms (also needed for the Gmail sending account)
 ├── docs/screenshots/       The screenshots in this README
@@ -233,7 +231,12 @@ cd backend && uv run python -m evals.run                  # detection eval with 
 cd frontend && npm run typecheck && npm run lint && npm run build
 ```
 
-To check a deployed app end to end without a Claude call, use `scripts/live_check.py`. It runs a whole file on an approved agreement and checks the signed PDF (see [CLAUDE.md](CLAUDE.md)).
+To check a deployed app end to end without a Claude call, use `scripts/live_check.py`. It runs a whole file on an approved agreement and checks the signed PDF:
+
+```bash
+cd backend
+LIVE_CHECK_PASSWORD=... uv run python -m scripts.live_check --base <app URL> --email <account with an approved agreement>
+```
 
 ## Deploy (Render, free tier)
 

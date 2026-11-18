@@ -2,7 +2,7 @@
 on them with an API key (DECISIONS.md D4). Webhooks tell them what happens next.
 
 A file opened here is a draft. A person at the firm checks its preview and sends it, as for any
-file (CLAUDE.md "Humans approve AI output"); the response's `url` is where they do that.
+file (DECISIONS.md D5: a person confirms every send); the response's `url` is where they do that.
 Interactive reference: /api/docs.
 """
 

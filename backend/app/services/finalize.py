@@ -7,7 +7,7 @@ job can run more than once, so it has two steps and each is safe to repeat:
    sent), bake any form fields into the page, append the certificate, and store the result.
    One conditional update (`finalized_at: None`) records it. A rerun, or a second worker that
    lost the race, keeps the first result, so the signed PDF never changes once it exists
-   (CLAUDE.md "Signed artifacts are immutable").
+   (DECISIONS.md D7: signed records never change).
 2. Deliver. Queue the signed copy to every signer and the sender (one email job per address,
    deduplicated), then record the `finalized` event.
 

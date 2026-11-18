@@ -31,3 +31,6 @@ backend/samples/*
 .DS_Store
 .idea/
 .vscode/
+
+# Working notes for Claude Code, kept on the owner's machine (not published)
+CLAUDE.md

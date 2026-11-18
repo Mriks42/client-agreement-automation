@@ -1,4 +1,4 @@
-"""The audit trail: append-only events on a file (CLAUDE.md "Signed artifacts are immutable").
+"""The audit trail: append-only events on a file (DECISIONS.md D7: signed records never change).
 
 Events are only ever inserted. A correction is a new event, never an edit. Events written by a
 job carry a `key` (unique), so a job that runs twice doesn't record the same thing twice.

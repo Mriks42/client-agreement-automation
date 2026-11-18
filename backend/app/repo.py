@@ -1,4 +1,4 @@
-"""Tenant-scoped data access (CLAUDE.md "Tenant isolation").
+"""Tenant-scoped data access: every query on a company's data is scoped to it (DECISIONS.md D14).
 
 Every read and write of tenant data goes through `Tenant`, which adds the `org_id` filter
 itself. Code never builds a bare `find({"_id": ...})` on a tenant collection, so forgetting the
