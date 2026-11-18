@@ -12,9 +12,18 @@ export function FilesPage() {
   const active = templates.data?.filter((t) => t.status === 'active') ?? []
   const newFileTo = active.length === 1 ? `/files/new?template=${active[0].id}` : '/files/new'
   const [filter, setFilter] = useState<Filter | null>(null)
+  const [query, setQuery] = useState('')
   const myEmail = me.data?.user.email
   const all = files.data ?? []
-  const shown = filter ? all.filter((f) => matches(f, filter, myEmail)) : all
+  const q = query.trim().toLowerCase()
+  const shown = all.filter(
+    (f) =>
+      (!filter || matches(f, filter, myEmail)) &&
+      (!q ||
+        [f.title, f.agreement_name, f.waiting_for?.name ?? '', f.waiting_for?.email ?? ''].some((s) =>
+          s.toLowerCase().includes(q),
+        )),
+  )
 
   return (
     <main className="mx-auto max-w-5xl px-4 py-8">
@@ -39,10 +48,35 @@ export function FilesPage() {
       {files.isError && <Alert className="mt-6">{files.error.message}</Alert>}
       {files.data?.length === 0 && templates.data && <Empty hasAgreement={active.length > 0} to={newFileTo} />}
       {all.length > 0 && <Summary files={all} myEmail={myEmail} filter={filter} onFilter={setFilter} />}
-      {filter && (
-        <p className="mt-4 text-sm text-slate-600">
-          Showing {shown.length} {shown.length === 1 ? 'file' : 'files'}: {FILTER_LABELS[filter].toLowerCase()}.{' '}
-          <button type="button" onClick={() => setFilter(null)} className="font-medium text-brand hover:underline">
+      {all.length > 0 && (
+        <div className="mt-4">
+          <label htmlFor="files-search" className="sr-only">
+            Search files
+          </label>
+          <input
+            id="files-search"
+            type="search"
+            autoComplete="off"
+            placeholder="Search by client, file or agreement"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            className="block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm shadow-xs focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20"
+          />
+        </div>
+      )}
+      {(filter || q) && (
+        <p className="mt-3 text-sm text-slate-600">
+          Showing {shown.length} {shown.length === 1 ? 'file' : 'files'}
+          {filter ? `: ${FILTER_LABELS[filter].toLowerCase()}` : ''}
+          {q ? ` matching “${query.trim()}”` : ''}.{' '}
+          <button
+            type="button"
+            onClick={() => {
+              setFilter(null)
+              setQuery('')
+            }}
+            className="font-medium text-brand hover:underline"
+          >
             Show all
           </button>
         </p>
