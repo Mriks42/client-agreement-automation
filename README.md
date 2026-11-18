@@ -2,10 +2,7 @@
 
 A firm uploads its standard client agreement once. AI finds where every blank and signature goes, and a person confirms it. From then on, every new file sends a pre-filled agreement to the right people, chases them until they sign, and returns a signed, tamper-evident PDF. It then tells the firm's other systems that work can start.
 
-- **Live app:** https://kickoff-r713.onrender.com
-- **Why it's built this way:** [DECISIONS.md](DECISIONS.md)
-- **Working on the code:** [CLAUDE.md](CLAUDE.md)
-- **Submission summary** (what's included, what's left out, and why): [SUBMISSION.md](SUBMISSION.md)
+**Live app:** https://kickoff-r713.onrender.com
 
 ## What it does
 
@@ -53,6 +50,12 @@ The [Kickoff MCP server](mcp-server/README.md) is a small add-on for Claude Desk
 ## Status
 
 Everything above is live. Before release I ran two blind-test rounds on nine public agreements the system had never seen, each taken from upload to signed PDF on the live app; the results are in the DECISIONS.md change log. Known limitations, and what production would need, are under "Known limitations" in [DECISIONS.md](DECISIONS.md).
+
+## Further reading
+
+- [SUBMISSION.md](SUBMISSION.md): what's included, what's left out, and why.
+- [DECISIONS.md](DECISIONS.md): every design decision, the blind-test results and the known limitations.
+- [CLAUDE.md](CLAUDE.md): how to work on the code.
 
 ## How it works
 
