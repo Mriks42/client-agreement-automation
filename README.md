@@ -14,6 +14,18 @@ A firm uploads its standard client agreement once. AI finds where every blank an
 6. **A whole team can use it.** Invite colleagues from Settings. Each gets their own login, and every file shows who sent it. Settings also sets the firm's logo and colour, which signers see on their emails and the signing page.
 7. **AI assistants can use it too.** The [Kickoff MCP server](mcp-server/README.md) lets Claude (or any MCP client) prepare a draft for a client, say which agreements are still waiting, and save the signed PDF. A person still checks and sends every draft.
 
+## Screenshots
+
+All screenshots are from the live app, with test data.
+
+![Kickoff's landing page, with a drawing of a signed agreement beside the headline](docs/screenshots/landing.png)
+
+| The review screen: Claude's proposed fields, ready for a person to approve | The signing page on a phone, in the firm's own logo and colour |
+|---|---|
+| <img src="docs/screenshots/review.png" alt="The review screen for an uploaded agreement, with highlighted blanks, notes from the analysis and the signers in order" width="560"> | <img src="docs/screenshots/signing-phone.png" alt="The signing page on a phone, with the firm's logo, the agreement with the client's details filled in, and a Next button in the firm's colour" width="250"> |
+
+![The public verify page confirming a signed PDF is the unchanged original, with the agreement, firm, date and signers](docs/screenshots/verify.png)
+
 ## Try it
 
 1. Open the [live app](https://kickoff-r713.onrender.com) and create an account (any company name).
