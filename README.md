@@ -65,7 +65,6 @@ Everything above is live. Before release I ran two blind-test rounds on nine pub
 | Hosting and operations | Docker on Render, Sentry (errors), UptimeRobot (uptime), GitHub Actions (CI) |
 | Testing and checks | pytest, ruff, mypy, oxlint; Playwright driving Chrome for end-to-end checks (not committed) |
 | Package managers | uv (Python), npm (frontend) |
-| Built with | Claude Code (Claude Opus 5.5) |
 
 ## Further reading
 
