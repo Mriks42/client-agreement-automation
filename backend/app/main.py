@@ -71,7 +71,13 @@ def create_app(settings: Settings | None = None, email: EmailSender | None = Non
             await app.state.db.close()
 
     app = FastAPI(
-        title="Agreement automation",
+        title="Kickoff API",
+        description=(
+            "Open files from your own systems and download the signed agreement. "
+            "Authenticate with `Authorization: Bearer <API key>` (Settings, then API keys). "
+            "A file opened here waits as a draft until someone at the firm checks the preview "
+            "and sends it. Signed webhooks report progress; see Settings, then Webhook."
+        ),
         version=settings.git_sha,
         lifespan=lifespan,
         docs_url="/api/docs",
@@ -125,16 +131,11 @@ def create_app(settings: Settings | None = None, email: EmailSender | None = Non
             )
         return response
 
-    app.include_router(health.router)
-    app.include_router(ops.router)
-    app.include_router(auth.router)
-    app.include_router(templates.router)
-    app.include_router(files.router)
-    app.include_router(clients.router)
-    app.include_router(verify.router)
-    app.include_router(branding.router)
-    app.include_router(signing.router)
-    app.include_router(settings_api.router)
+    # The website's own endpoints work as before but stay out of the API reference at /api/docs,
+    # which documents only the public API (v1) that other systems should build on.
+    for internal in (health, ops, auth, templates, files, clients, verify, branding, signing):
+        app.include_router(internal.router, include_in_schema=False)
+    app.include_router(settings_api.router, include_in_schema=False)
     app.include_router(v1.router)
 
     _mount_spa(app, settings)

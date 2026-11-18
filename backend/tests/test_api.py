@@ -274,3 +274,12 @@ async def test_webhook_address_must_be_public(monkeypatch: pytest.MonkeyPatch) -
             await webhooks.check_url(bad, allow_private=False)
     # Outside production, a local receiver is allowed (for development).
     assert await webhooks.check_url("http://localhost:9000/k", allow_private=True)
+
+
+async def test_the_api_reference_shows_only_the_public_api(client: httpx.AsyncClient) -> None:
+    spec = (await client.get("/api/openapi.json")).json()
+    assert spec["info"]["title"] == "Kickoff API"
+    assert spec["paths"] and all(p.startswith("/api/v1/") for p in spec["paths"])
+    assert (await client.get("/api/docs")).status_code == 200
+    # The website's own endpoints still work; they're just not in the reference.
+    assert (await client.get("/api/health")).status_code in (200, 503)
