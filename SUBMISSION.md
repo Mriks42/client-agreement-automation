@@ -50,10 +50,10 @@ Claude is used in one place, once per agreement. When the firm uploads it, Claud
 | **Reminders, 30-day expiry, resend, correct an email, copy link, void** | Chasing signatures is the manual work the client complained about. Copy link is the way out when an email lands in spam. |
 | **Signed PDF with an audit certificate and SHA-256 fingerprints**, emailed to everyone | Proof of who signed, when, from where, and that the document hasn't changed since. |
 | **A public verify page**: anyone drops in a signed PDF and sees whether it's the unchanged original | A client, auditor or court can check a copy in seconds without asking the firm. The browser computes the fingerprint, so the PDF never leaves their device, and the page shows only what the PDF itself shows. |
-| **"Signed: ready to start work"** on each file, and a dashboard of every file | That's the outcome the client asked for: knowing when work can start. |
+| **"Signed: ready to start work"** on each file, and a dashboard of every file with a summary (waiting on others, waiting on you, signed this week, average time to sign) and search | That's the outcome the client asked for: knowing when work can start. A firm with many files sees what needs it first. |
 | **Self-serve signup with each company's data kept separate**; emails in the firm's name | "Sell it to every other company in our industry." |
 | **The firm's logo and colour** on signing emails and the signing page (Settings, then Branding) | A client signs with a firm they recognise, not with an unfamiliar tool, which matters for a product Astra will resell. Text on the colour is always readable, and "Secured by Kickoff" stays. |
-| **Team members**: invite colleagues by email, each with their own login; remove them in one click | Any firm has more than one person. Each file shows who sent it, and a person who leaves loses access at once. |
+| **Team members**: invite colleagues by email, each with their own login, name and password (changed in Settings); remove them in one click | Any firm has more than one person. Each file shows who sent it, and a person who leaves loses access at once. |
 | **Public API with API keys and idempotency, plus signed webhooks** with retries and a delivery log | "Every file" becomes automatic: the firm's CRM opens files and hears when they're signed. |
 | **MCP server** for Claude and other AI assistants | Astra's world is AI assistants using tools through MCP. An assistant can prepare drafts, track signatures and fetch signed copies, but a person still sends. |
 | **A durable job queue for everything slow or external**; every failure shown with a next step; monitoring | A slow AI or a hiccup at Gmail never breaks a click. Nothing fails silently. |
@@ -81,6 +81,7 @@ Claude is used in one place, once per agreement. When the firm uploads it, Claud
 
 ## Known limitations
 
+- There's no "Forgot password?" yet. A colleague can remove and re-invite someone who forgets theirs; the next step is an emailed reset link.
 - A long value in a short placeholder in mid-sentence (like `$[X], of which`) still shrinks to fit, because the document isn't re-typeset. On a line of its own, it runs on into the empty space.
 - A two-underscore blank, like the `(__)` in "thirty (__) days", isn't found and is added in the editor. Three or more underscores are found, even in small type.
 - Email comes from a dedicated Gmail account on the free tier. Production would use a transactional email provider on the firm's own domain.
