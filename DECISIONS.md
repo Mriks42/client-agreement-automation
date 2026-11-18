@@ -317,7 +317,8 @@ Found in the blind tests (Nov 17); none stops an agreement from being signed:
 - **Claude Code** (model: Claude Opus 5.5) for planning, writing code, tests, and documentation, and for code review.
 - **Claude API** (`claude-opus-5-5`) inside the product, for agreement field detection.
 - **Services:** Render (hosting), MongoDB Atlas (database), Gmail API (email), Sentry (error tracking), UptimeRobot (uptime and keep-awake), GitHub.
-- **Key libraries:** FastAPI, Pydantic, PyMongo, PyMuPDF, LibreOffice (DOCX conversion), React, Vite, Tailwind, TanStack Query, signature_pad.
+- **Key libraries:** FastAPI, Pydantic, PyMongo, uvicorn, httpx, argon2 (passwords), PyMuPDF, LibreOffice (DOCX conversion), React, TypeScript, Vite, Tailwind, TanStack Query, React Router, signature_pad.
+- **Build and checks:** Docker, uv and npm; pytest, ruff, mypy and oxlint.
 - **Playwright**, driving Chrome for the end-to-end checks and blind tests (testing only, not part of the product).
 - **The official MCP Python SDK** for the Kickoff MCP server (item 16).
 

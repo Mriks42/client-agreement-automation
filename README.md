@@ -51,6 +51,22 @@ The [Kickoff MCP server](mcp-server/README.md) is a small add-on for Claude Desk
 
 Everything above is live. Before release I ran two blind-test rounds on nine public agreements the system had never seen, each taken from upload to signed PDF on the live app; the results are in the DECISIONS.md change log. Known limitations, and what production would need, are under "Known limitations" in [DECISIONS.md](DECISIONS.md).
 
+## Tech stack
+
+| Part | Built with |
+|---|---|
+| Backend | Python 3.13, FastAPI, Pydantic, PyMongo (async), uvicorn, httpx, argon2 (passwords) |
+| Documents | PyMuPDF (reading, filling and finishing PDFs), LibreOffice (Word to PDF) |
+| AI | The Claude API (`claude-opus-5-5`) through the Anthropic Python SDK |
+| Frontend | React, TypeScript, Vite, Tailwind CSS, TanStack Query, React Router, signature_pad |
+| Data and files | MongoDB Atlas, with GridFS for documents |
+| Email | Gmail API |
+| MCP server | The official MCP Python SDK |
+| Hosting and operations | Docker on Render, Sentry (errors), UptimeRobot (uptime), GitHub Actions (CI) |
+| Testing and checks | pytest, ruff, mypy, oxlint; Playwright driving Chrome for end-to-end checks (not committed) |
+| Package managers | uv (Python), npm (frontend) |
+| Built with | Claude Code (Claude Opus 5.5) |
+
 ## Further reading
 
 - [SUBMISSION.md](SUBMISSION.md): what's included, what's left out, and why.

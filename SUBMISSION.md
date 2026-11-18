@@ -93,6 +93,7 @@ The rest, with what production would need, is in DECISIONS.md under "Known limit
 - **Claude API** (`claude-opus-5-5`) inside the product, to label each blank in an agreement.
 - **Playwright**, driving Chrome for the end-to-end checks (testing only, not part of the product).
 - **Services:** Render (hosting), MongoDB Atlas (database and files), Gmail API (email), Sentry (errors), UptimeRobot (uptime), GitHub Actions (CI).
-- **Main libraries:** FastAPI, Pydantic, PyMongo, PyMuPDF, LibreOffice (Word conversion), React, Vite, Tailwind, TanStack Query, signature_pad, and the official MCP Python SDK.
+- **Main libraries:** FastAPI, Pydantic, PyMongo, uvicorn, httpx, argon2 (passwords), PyMuPDF, LibreOffice (Word conversion), React, TypeScript, Vite, Tailwind, TanStack Query, React Router, signature_pad, and the official MCP Python SDK.
+- **Build and checks:** Docker, uv and npm; pytest, ruff, mypy and oxlint.
 
 All test data is fake (Acme Test Co, Jane Client, plus-addresses of a dedicated test inbox).
