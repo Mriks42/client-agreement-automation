@@ -18,13 +18,21 @@ A firm uploads its standard client agreement once. AI finds where every blank an
 
 All screenshots are from the live app, with test data.
 
+**The landing page**
+
 ![Kickoff's landing page, with a drawing of a signed agreement beside the headline](docs/screenshots/landing.png)
 
-| The review screen: Claude's proposed fields, ready for a person to approve | The signing page on a phone, in the firm's own logo and colour |
-|---|---|
-| <img src="docs/screenshots/review.png" alt="The review screen for an uploaded agreement, with highlighted blanks, notes from the analysis and the signers in order" width="560"> | <img src="docs/screenshots/signing-phone.png" alt="The signing page on a phone, with the firm's logo, the agreement with the client's details filled in, and a Next button in the firm's colour" width="250"> |
+**Reviewing a new agreement:** Claude's proposed fields, ready for a person to approve
 
-![The public verify page confirming a signed PDF is the unchanged original, with the agreement, firm, date and signers](docs/screenshots/verify.png)
+![The review screen for an uploaded agreement, with highlighted blanks, notes from the analysis and the signers in order](docs/screenshots/review.png)
+
+**Signing on a phone,** in the firm's own logo and colour
+
+<p align="center"><img src="docs/screenshots/signing-phone.png" alt="The signing page on a phone, with the firm's logo, the agreement with the client's details filled in, and a Next button in the firm's colour" width="300"></p>
+
+**Checking a signed copy** on the public verify page
+
+![The verify page confirming a signed PDF is the unchanged original, with the agreement, firm, date and signers](docs/screenshots/verify.png)
 
 ## Try it
 
