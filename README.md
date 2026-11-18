@@ -12,7 +12,7 @@ A firm uploads its standard client agreement once. AI finds where every blank an
 4. **The Files page shows where everything stands:** what's waiting on others, what's waiting on you, what was signed this week, and the average time to sign.
 5. **Everyone gets the signed PDF** with an audit certificate showing who signed, when, from where, and the SHA-256 fingerprints. The file shows "Signed: ready to start work". Anyone can check a copy at [/verify](https://kickoff-r713.onrender.com/verify): the browser works out the PDF's fingerprint, so the PDF never leaves their device.
 6. **Other systems can join in.** With an API key, a CRM or practice manager can open files. Signed webhooks report when each file is sent, signed and complete.
-7. **A whole team can use it.** Invite colleagues from Settings. Each gets their own login, and every file shows who sent it. Settings also sets the firm's logo and colour, which signers see on their emails and the signing page.
+7. **A whole team can use it.** Invite colleagues from Settings. Each gets their own login (with their own name and password, changed in Settings), and every file shows who sent it. Settings also sets the firm's logo and colour, which signers see on their emails and the signing page.
 8. **AI assistants can use it too.** The [Kickoff MCP server](mcp-server/README.md) lets Claude (or any MCP client) prepare a draft for a client, say which agreements are still waiting, and save the signed PDF. A person still checks and sends every draft.
 
 ## Screenshots

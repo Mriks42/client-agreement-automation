@@ -155,6 +155,38 @@ async def load_session(db: AsyncDatabase, settings: Settings, token: str) -> Cur
     return CurrentUser(user["_id"], user["org_id"], user["email"], user["name"], org["name"])
 
 
+async def rename(db: AsyncDatabase, user: CurrentUser, name: str) -> None:
+    """Files already opened keep the sender's name they were sent with; new ones use this."""
+    await db.users.update_one({"_id": user.id, "org_id": user.org_id}, {"$set": {"name": name}})
+
+
+async def change_password(
+    db: AsyncDatabase,
+    settings: Settings,
+    user: CurrentUser,
+    current: str,
+    new: str,
+    keep_token: str,
+) -> bool:
+    """Set a new password if `current` is right. Every other session of this user ends (a
+    stolen login stops working); the one making the change stays signed in."""
+    stored = await db.users.find_one({"_id": user.id, "org_id": user.org_id}, {"password_hash": 1})
+    if not await verify_password(stored["password_hash"] if stored else None, current):
+        return False
+    new_hash = await hash_password(new)
+    await db.users.update_one(
+        {"_id": user.id, "org_id": user.org_id}, {"$set": {"password_hash": new_hash}}
+    )
+    await db.sessions.delete_many(
+        {
+            "user_id": user.id,
+            "org_id": user.org_id,
+            "_id": {"$ne": _session_key(settings, keep_token)},
+        }
+    )
+    return True
+
+
 async def delete_session(db: AsyncDatabase, settings: Settings, token: str) -> None:
     if token:
         await db.sessions.delete_one({"_id": _session_key(settings, token)})

@@ -56,6 +56,23 @@ export function useSignup() {
   })
 }
 
+export function useUpdateMyName() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (name: string) => api.patch<Me>('/api/auth/me', { name }),
+    onSuccess: (me) => {
+      qc.setQueryData(['me'], me)
+      void qc.invalidateQueries({ queryKey: ['team'] }) // the Team card lists you by name too
+    },
+  })
+}
+
+export function useChangePassword() {
+  return useMutation({
+    mutationFn: (body: { current_password: string; new_password: string }) => api.post<null>('/api/auth/password', body),
+  })
+}
+
 export function useLogout() {
   const qc = useQueryClient()
   return useMutation({

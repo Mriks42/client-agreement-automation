@@ -1,5 +1,6 @@
 """Signup, login, logout and the current user (DECISIONS.md D14)."""
 
+import dataclasses
 from typing import Annotated, Any
 
 from fastapi import APIRouter, HTTPException, Request, Response
@@ -26,6 +27,15 @@ class JoinIn(BaseModel):
     token: Annotated[str, StringConstraints(min_length=1, max_length=200)]
     name: Name
     password: Password
+
+
+class NameIn(BaseModel):
+    name: Name
+
+
+class PasswordChangeIn(BaseModel):
+    current_password: Annotated[str, StringConstraints(min_length=1, max_length=200)]
+    new_password: Password
 
 
 class LoginIn(BaseModel):
@@ -89,6 +99,35 @@ async def logout(request: Request, response: Response) -> None:
 @router.get("/me")
 async def me(user: UserDep) -> dict[str, Any]:
     return user.public()
+
+
+@router.patch("/me")
+async def update_me(body: NameIn, request: Request, user: UserDep) -> dict[str, Any]:
+    """Change your own name. Files already sent keep the name they went out with."""
+    await accounts.rename(request.app.state.db.db, user, body.name)
+    return dataclasses.replace(user, name=body.name).public()
+
+
+@router.post("/password", status_code=204)
+async def change_password(body: PasswordChangeIn, request: Request, user: UserDep) -> None:
+    """Change your own password. Your other sessions end; this one stays signed in."""
+    throttle: accounts.LoginThrottle = request.app.state.login_throttle
+    if throttle.blocked(user.email):
+        raise HTTPException(
+            status_code=429, detail="Too many failed attempts. Wait 15 minutes and try again."
+        )
+    ok = await accounts.change_password(
+        request.app.state.db.db,
+        request.app.state.settings,
+        user,
+        body.current_password,
+        body.new_password,
+        request.cookies.get(accounts.COOKIE_NAME, ""),
+    )
+    if not ok:
+        throttle.failed(user.email)
+        raise HTTPException(status_code=400, detail="Your current password is incorrect.")
+    throttle.succeeded(user.email)
 
 
 _BAD_INVITE = "This invitation isn't valid any more. Ask your colleague to invite you again."

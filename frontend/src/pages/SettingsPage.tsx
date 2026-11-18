@@ -4,10 +4,12 @@ import { errorProblems } from '../api/client'
 import {
   useApiKeys,
   useBranding,
+  useChangePassword,
   useCopyInviteLink,
   useCreateApiKey,
   useDeleteWebhook,
   useInviteMember,
+  useMe,
   useRemoveLogo,
   useRemoveMember,
   useRevokeInvite,
@@ -17,6 +19,7 @@ import {
   useSetBrandColor,
   useTeam,
   useTestWebhook,
+  useUpdateMyName,
   useUploadLogo,
   useWebhook,
   useWebhookDeliveries,
@@ -33,10 +36,11 @@ export function SettingsPage() {
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Settings</h1>
         <p className="mt-1 text-sm text-slate-600">
-          Your team, your logo and colour, and your other systems: a CRM or practice manager can open a file with an
-          API key, and a webhook tells it when the agreement is signed so work can start.
+          Your account, your team, your logo and colour, and your other systems: a CRM or practice manager can open a
+          file with an API key, and a webhook tells it when the agreement is signed so work can start.
         </p>
       </div>
+      <AccountCard />
       <TeamCard />
       <Card>
         <h2 className="text-base font-semibold">Saved clients</h2>
@@ -84,6 +88,113 @@ function Secret({ value, label }: { value: string; label: string }) {
 }
 
 // ---- team ---------------------------------------------------------------------------------------
+function AccountCard() {
+  const me = useMe()
+  const rename = useUpdateMyName()
+  const change = useChangePassword()
+  const [name, setName] = useState<string | null>(null)
+  const [current, setCurrent] = useState('')
+  const [next, setNext] = useState('')
+  const [renamed, setRenamed] = useState(false)
+  const [changed, setChanged] = useState(false)
+  if (!me.data) return null
+  const saved = me.data.user.name
+  const value = name ?? saved
+
+  return (
+    <Card>
+      <h2 className="text-base font-semibold">Your account</h2>
+      <p className="mt-1 text-sm text-slate-600">
+        Signed in as <span className="font-medium text-slate-800">{me.data.user.email}</span> at {me.data.org.name}.
+      </p>
+
+      <form
+        className="mt-4 flex flex-wrap items-end gap-3"
+        onSubmit={(e) => {
+          e.preventDefault()
+          setRenamed(false)
+          rename.mutate(value.trim(), {
+            onSuccess: () => {
+              setName(null)
+              setRenamed(true)
+            },
+          })
+        }}
+      >
+        <TextInput
+          id="account-name"
+          label="Your name"
+          hint="Signers see it on emails you send. Files already sent keep the name they went out with."
+          className="min-w-0 flex-1"
+          maxLength={120}
+          required
+          value={value}
+          onChange={(e) => {
+            setName(e.target.value)
+            setRenamed(false)
+          }}
+        />
+        <Button type="submit" variant="secondary" className="mb-5" busy={rename.isPending} disabled={!value.trim() || value.trim() === saved}>
+          Save name
+        </Button>
+      </form>
+      {renamed && <p className="text-sm text-emerald-700">Your name is saved.</p>}
+      {rename.isError && <Alert className="mt-2">{rename.error.message}</Alert>}
+
+      <form
+        className="mt-5 border-t border-slate-100 pt-4"
+        onSubmit={(e) => {
+          e.preventDefault()
+          setChanged(false)
+          change.mutate(
+            { current_password: current, new_password: next },
+            {
+              onSuccess: () => {
+                setCurrent('')
+                setNext('')
+                setChanged(true)
+              },
+            },
+          )
+        }}
+      >
+        <h3 className="text-sm font-medium text-slate-800">Change your password</h3>
+        <div className="mt-2 grid gap-3 sm:grid-cols-2">
+          <TextInput
+            id="account-current-password"
+            label="Current password"
+            type="password"
+            autoComplete="current-password"
+            required
+            value={current}
+            onChange={(e) => setCurrent(e.target.value)}
+          />
+          <TextInput
+            id="account-new-password"
+            label="New password"
+            type="password"
+            autoComplete="new-password"
+            minLength={8}
+            required
+            hint="At least 8 characters."
+            value={next}
+            onChange={(e) => setNext(e.target.value)}
+          />
+        </div>
+        <Button type="submit" variant="secondary" className="mt-3" busy={change.isPending} disabled={!current || next.length < 8}>
+          Change password
+        </Button>
+        {changed && (
+          <p className="mt-2 text-sm text-emerald-700">
+            Your password is changed. You're still signed in here; any other devices were signed out.
+          </p>
+        )}
+        {change.isError && <Alert className="mt-2">{change.error.message}</Alert>}
+      </form>
+    </Card>
+  )
+}
+
 function TeamCard() {
   const team = useTeam()
   const inviteMember = useInviteMember()
